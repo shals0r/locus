@@ -69,6 +69,7 @@
 - [ ] **AUTH-01**: User can set up their Locus instance with a password on first run
 - [ ] **AUTH-02**: User can store credentials for external services (GitLab, GitHub, Jira, Google) encrypted in Postgres
 - [ ] **AUTH-03**: SSH key references are stored securely (paths to keys, not the keys themselves)
+- [ ] **AUTH-04**: User configures Claude Code auth once (API key, Bedrock credentials, or subscription/OAuth) and Locus replicates that config when launching sessions on any connected machine
 
 ### Deployment
 
@@ -118,56 +119,57 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | - | Pending |
-| TERM-02 | - | Pending |
-| TERM-03 | - | Pending |
-| TERM-04 | - | Pending |
-| TERM-05 | - | Pending |
-| TERM-06 | - | Pending |
-| TERM-07 | - | Pending |
-| GIT-01 | - | Pending |
-| GIT-02 | - | Pending |
-| GIT-03 | - | Pending |
-| GIT-04 | - | Pending |
-| GIT-05 | - | Pending |
-| GIT-06 | - | Pending |
-| FEED-01 | - | Pending |
-| FEED-02 | - | Pending |
-| FEED-03 | - | Pending |
-| FEED-04 | - | Pending |
-| FEED-05 | - | Pending |
-| FEED-06 | - | Pending |
-| FEED-07 | - | Pending |
-| FEED-08 | - | Pending |
-| DIFF-01 | - | Pending |
-| DIFF-02 | - | Pending |
-| DIFF-03 | - | Pending |
-| DIFF-04 | - | Pending |
-| DIFF-05 | - | Pending |
-| INTG-01 | - | Pending |
-| INTG-02 | - | Pending |
-| INTG-03 | - | Pending |
-| INTG-04 | - | Pending |
-| INTG-05 | - | Pending |
-| UI-01 | - | Pending |
-| UI-02 | - | Pending |
-| UI-03 | - | Pending |
-| UI-04 | - | Pending |
-| SKIL-01 | - | Pending |
-| SKIL-02 | - | Pending |
-| SKIL-03 | - | Pending |
-| AUTH-01 | - | Pending |
-| AUTH-02 | - | Pending |
-| AUTH-03 | - | Pending |
-| DEPL-01 | - | Pending |
-| DEPL-02 | - | Pending |
-| DEPL-03 | - | Pending |
+| TERM-01 | Phase 1 | Pending |
+| TERM-02 | Phase 1 | Pending |
+| TERM-03 | Phase 1 | Pending |
+| TERM-04 | Phase 1 | Pending |
+| TERM-05 | Phase 1 | Pending |
+| TERM-06 | Phase 1 | Pending |
+| TERM-07 | Phase 1 | Pending |
+| GIT-01 | Phase 2 | Pending |
+| GIT-02 | Phase 2 | Pending |
+| GIT-03 | Phase 2 | Pending |
+| GIT-04 | Phase 2 | Pending |
+| GIT-05 | Phase 2 | Pending |
+| GIT-06 | Phase 2 | Pending |
+| FEED-01 | Phase 2 | Pending |
+| FEED-02 | Phase 2 | Pending |
+| FEED-03 | Phase 2 | Pending |
+| FEED-04 | Phase 2 | Pending |
+| FEED-05 | Phase 2 | Pending |
+| FEED-06 | Phase 2 | Pending |
+| FEED-07 | Phase 2 | Pending |
+| FEED-08 | Phase 2 | Pending |
+| DIFF-01 | Phase 3 | Pending |
+| DIFF-02 | Phase 3 | Pending |
+| DIFF-03 | Phase 3 | Pending |
+| DIFF-04 | Phase 3 | Pending |
+| DIFF-05 | Phase 3 | Pending |
+| INTG-01 | Phase 2 | Pending |
+| INTG-02 | Phase 4 | Pending |
+| INTG-03 | Phase 4 | Pending |
+| INTG-04 | Phase 4 | Pending |
+| INTG-05 | Phase 4 | Pending |
+| UI-01 | Phase 2 | Pending |
+| UI-02 | Phase 2 | Pending |
+| UI-03 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Pending |
+| SKIL-01 | Phase 4 | Pending |
+| SKIL-02 | Phase 4 | Pending |
+| SKIL-03 | Phase 4 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| DEPL-01 | Phase 1 | Pending |
+| DEPL-02 | Phase 1 | Pending |
+| DEPL-03 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 43 total
-- Mapped to phases: 0
-- Unmapped: 43
+- v1 requirements: 45 total
+- Mapped to phases: 45
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after initial definition*
+*Last updated: 2026-03-23 after roadmap creation*
