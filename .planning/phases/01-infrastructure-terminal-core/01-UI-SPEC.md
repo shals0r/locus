@@ -50,12 +50,12 @@ Exceptions: Touch targets for interactive elements (tabs, sidebar items, buttons
 | Role | Size | Weight | Line Height | Font |
 |------|------|--------|-------------|------|
 | Body | 14px | 400 (regular) | 1.5 | Inter |
-| Label | 12px | 500 (medium) | 1.4 | Inter |
+| Label | 12px | 400 (regular) | 1.4 | Inter |
 | Heading | 18px | 600 (semibold) | 1.3 | Inter |
 | Terminal | 14px | 400 (regular) | 1.2 | JetBrains Mono |
 
 **Constraints:**
-- 2 weights only for UI text: 400 and 600. Labels use 500 as the single exception (needed for form labels and status text to differentiate from body without appearing as headings).
+- 2 weights only: 400 (regular) and 600 (semibold). No exceptions. Labels at 12px are already visually distinct from 14px body text — weight differentiation is not needed.
 - Terminal font size is user-adjustable in a future phase; 14px is the default.
 - No font sizes outside this set. If text does not fit one of these four roles, it is the wrong text.
 
@@ -91,6 +91,8 @@ All colors specified for dark theme only (D-17).
 ## Panel Layout Contract
 
 Source: D-05, D-06, D-07, D-08, Claude's discretion on proportions.
+
+**Primary focal point:** The terminal view in the center panel. All other elements (sidebar, top bar, tab bars) are secondary and should not compete for attention at rest.
 
 | Panel | Default Width | Min Width | Collapsed Width | Collapse Behavior |
 |-------|--------------|-----------|----------------|-------------------|
