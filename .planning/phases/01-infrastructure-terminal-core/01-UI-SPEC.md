@@ -35,13 +35,15 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline badge padding, status dot margins |
 | sm | 8px | Compact element spacing, tab padding, sidebar item padding |
+| hit-area | 12px | Invisible drag handle hit area extension |
 | md | 16px | Default element spacing, form field gaps, panel padding |
 | lg | 24px | Section padding within settings pages, wizard step spacing |
 | xl | 32px | Layout gaps between major sections |
+| touch | 36px | Minimum interactive element height (desktop): tabs, sidebar items, buttons, machine tab bar |
 | 2xl | 48px | Setup wizard page-level padding |
 | 3xl | 64px | Login page centering offset |
 
-Exceptions: Touch targets for interactive elements (tabs, sidebar items, buttons) must be minimum 36px height for desktop use. Drag handles for panel resize are 4px wide with 12px invisible hit area.
+**Constraints:** Touch targets for interactive elements use the declared `touch` token (36px) as minimum height. Drag handles for panel resize are 4px visible width with the declared `hit-area` token (12px) as invisible hit area for easier grabbing.
 
 ---
 
@@ -100,10 +102,10 @@ Source: D-05, D-06, D-07, D-08, Claude's discretion on proportions.
 | Center (terminals) | 80% | 400px | n/a (never collapses) |  n/a |
 | Right (feed, Phase 2) | 0% (collapsed) | 240px | 0px | Not shown in Phase 1 |
 
-**Resize handles:** 4px visible width, `border` color at rest, `accent` color on hover. 12px invisible hit area for easier grabbing. Double-click handle resets panel to default width (D-07).
+**Resize handles:** 4px visible width, `border` color at rest, `accent` color on hover. `hit-area` (12px) invisible extension for easier grabbing. Double-click handle resets panel to default width (D-07).
 
 **Top bar height:** 48px. Fixed, never scrolls.
-**Machine tab bar height:** 36px. Fixed, below top bar. Scrolls horizontally if tabs overflow.
+**Machine tab bar height:** `touch` (36px). Fixed, below top bar. Scrolls horizontally if tabs overflow.
 **Sub-tab bar height:** 32px. Within center panel, shows sessions for selected machine.
 
 **Focus mode (UI-04):** Collapse sidebar via keyboard shortcut (Ctrl+B). Center panel expands to full width. Right panel remains collapsed in Phase 1.
@@ -199,7 +201,7 @@ Components needed for this phase, listed by area:
 | Element | Copy |
 |---------|------|
 | Primary CTA (setup) | "Add Machine" |
-| Primary CTA (login) | "Log In" |
+| Primary CTA (login) | "Log in to Locus" |
 | Primary CTA (terminal) | "New Terminal" |
 | Setup wizard step 1 heading | "Set your password" |
 | Setup wizard step 1 body | "Choose a password to secure your Locus instance." |
