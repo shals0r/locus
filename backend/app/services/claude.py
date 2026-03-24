@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 
 import asyncssh
 
 logger = logging.getLogger(__name__)
+
+# Marker file written by Claude Code hooks (Stop/PreToolUse)
+_MARKER_FILE = "/tmp/.locus-claude-status"
+# Marker is trusted if written within this many seconds
+_MARKER_MAX_AGE = 300
 
 
 async def detect_claude_sessions(
@@ -51,6 +58,27 @@ async def detect_claude_sessions(
         return []
 
 
+async def _read_claude_marker(
+    conn: asyncssh.SSHClientConnection,
+) -> dict | None:
+    """Read the Claude Code status marker file written by hooks.
+
+    Returns parsed JSON dict or None if file is missing, corrupt, or stale.
+    """
+    try:
+        result = await conn.run(
+            f"cat {_MARKER_FILE} 2>/dev/null",
+            check=True,
+        )
+        data = json.loads(result.stdout.strip())
+        ts = data.get("ts", 0)
+        if time.time() - ts > _MARKER_MAX_AGE:
+            return None
+        return data
+    except (asyncssh.ProcessError, json.JSONDecodeError, Exception):
+        return None
+
+
 async def detect_waiting_for_input(
     conn: asyncssh.SSHClientConnection,
     tmux_session: str,
@@ -60,14 +88,6 @@ async def detect_waiting_for_input(
 
     Captures the last few lines of the pane and checks for common
     Claude Code prompt patterns.
-
-    Args:
-        conn: An active SSH connection.
-        tmux_session: The tmux session name.
-        window_index: The tmux window index.
-
-    Returns:
-        True if the session appears to be waiting for input.
     """
     try:
         result = await conn.run(
@@ -82,3 +102,25 @@ async def detect_waiting_for_input(
     except Exception as exc:
         logger.warning("Failed to detect waiting state: %s", exc)
         return False
+
+
+async def detect_claude_session_status(
+    conn: asyncssh.SSHClientConnection,
+    tmux_session: str,
+    window_index: int,
+) -> str:
+    """Unified status detection: returns 'idle', 'running', or 'waiting'.
+
+    Checks marker file first (fast, reliable when hooks configured),
+    then falls back to tmux pane pattern matching.
+    """
+    # Check marker file first (written by Claude Code hooks)
+    marker = await _read_claude_marker(conn)
+    if marker is not None:
+        status = marker.get("status")
+        if status in ("waiting", "running"):
+            return status
+
+    # Fall back to pane capture
+    waiting = await detect_waiting_for_input(conn, tmux_session, window_index)
+    return "waiting" if waiting else "running"

@@ -8,6 +8,7 @@ interface SessionState {
   addSession: (session: TerminalSession) => void;
   removeSession: (id: string) => void;
   setActiveSession: (id: string) => void;
+  updateSessionDisplayName: (id: string, displayName: string) => void;
   getSessionsForMachine: (machineId: string) => TerminalSession[];
 }
 
@@ -23,6 +24,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeSessionId: s.activeSessionId === id ? null : s.activeSessionId,
     })),
   setActiveSession: (id) => set({ activeSessionId: id }),
+  updateSessionDisplayName: (id, displayName) =>
+    set((s) => ({
+      sessions: s.sessions.map((sess) =>
+        sess.id === id ? { ...sess, display_name: displayName } : sess,
+      ),
+    })),
   getSessionsForMachine: (machineId) =>
     get().sessions.filter((s) => s.machine_id === machineId),
 }));

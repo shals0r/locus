@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getWsUrl } from "../api/client";
 import { useMachineStore } from "../stores/machineStore";
 import { useClaudeSessionStore } from "../stores/claudeSessionStore";
+import { useSessionStore } from "../stores/sessionStore";
 import type { ClaudeSession, MachineStatus } from "../types";
 
 interface ServiceStatus {
@@ -18,6 +19,9 @@ interface ServiceStatus {
 export function useStatus() {
   const setMachineStatus = useMachineStore((s) => s.setMachineStatus);
   const setSessions = useClaudeSessionStore((s) => s.setSessions);
+  const updateSessionDisplayName = useSessionStore(
+    (s) => s.updateSessionDisplayName,
+  );
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({
     database: "connected",
     claude_code: "unconfigured",
@@ -63,6 +67,18 @@ export function useStatus() {
             }
             break;
           }
+
+          case "session_names": {
+            if (msg.updates) {
+              for (const u of msg.updates as {
+                session_id: string;
+                display_name: string;
+              }[]) {
+                updateSessionDisplayName(u.session_id, u.display_name);
+              }
+            }
+            break;
+          }
         }
       } catch {
         // Ignore malformed messages
@@ -77,7 +93,7 @@ export function useStatus() {
       ws.close();
       wsRef.current = null;
     };
-  }, [setMachineStatus, setSessions]);
+  }, [setMachineStatus, setSessions, updateSessionDisplayName]);
 
   return { serviceStatus };
 }

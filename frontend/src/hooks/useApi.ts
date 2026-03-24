@@ -26,6 +26,11 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+export async function apiPatch(path: string): Promise<void> {
+  const res = await apiFetch(path, { method: "PATCH" });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());

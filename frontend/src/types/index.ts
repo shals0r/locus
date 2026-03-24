@@ -28,6 +28,7 @@ export interface TerminalSession {
   tmux_session_name: string | null;
   repo_path: string | null;
   is_active: boolean;
+  display_name?: string | null;
 }
 
 export type MachineStatus = "online" | "offline" | "reconnecting";

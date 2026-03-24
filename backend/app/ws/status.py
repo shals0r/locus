@@ -5,20 +5,26 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
+import asyncssh
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
+from app.database import async_session_factory
+from app.models.session import TerminalSession
 from app.services.auth import verify_token
-from app.services.claude import detect_claude_sessions, detect_waiting_for_input
+from app.services.claude import detect_claude_sessions, detect_claude_session_status
 from app.ssh.manager import ssh_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Polling interval for status updates (seconds)
-STATUS_POLL_INTERVAL = 30
+# Polling intervals (seconds)
+CLAUDE_POLL_INTERVAL = 10
+MACHINE_POLL_EVERY_N_TICKS = 3  # machine status every 3 Claude ticks (30s)
 
 
 @router.websocket("/ws/status")
@@ -26,8 +32,9 @@ async def status_websocket(websocket: WebSocket) -> None:
     """WebSocket endpoint for live machine and Claude Code status.
 
     Auth via ?token= query parameter. Sends initial snapshot on connect,
-    then periodic delta updates every 30 seconds. Also receives immediate
-    push updates when machine status changes.
+    then periodic delta updates. Claude sessions polled every 10s,
+    machine statuses every 30s. Also receives immediate push updates
+    when machine status changes.
     """
     # Auth check
     token = websocket.query_params.get("token")
@@ -100,6 +107,88 @@ async def status_websocket(websocket: WebSocket) -> None:
             pass
 
 
+async def _detect_pane_display_name(
+    conn: asyncssh.SSHClientConnection,
+    tmux_session_name: str,
+) -> str | None:
+    """Get a display name for a tmux session based on pane CWD + git branch."""
+    try:
+        result = await conn.run(
+            f"tmux display-message -p -t '{tmux_session_name}' '#{{pane_current_path}}'",
+            check=True,
+        )
+        cwd = result.stdout.strip()
+        if not cwd:
+            return None
+
+        dirname = cwd.rstrip("/").split("/")[-1]
+
+        # Try git branch
+        try:
+            br_result = await conn.run(
+                f"git -C '{cwd}' rev-parse --abbrev-ref HEAD 2>/dev/null",
+                check=True,
+            )
+            branch = br_result.stdout.strip()
+            if branch and branch != "HEAD":
+                # Sanitize: replace dots/colons with dashes
+                branch = re.sub(r"[.:\s]+", "-", branch)
+                return f"{dirname}-{branch}"
+        except asyncssh.ProcessError:
+            pass
+
+        return dirname
+    except Exception:
+        return None
+
+
+async def _poll_session_names() -> list[dict[str, str]]:
+    """Check CWD+branch for all active sessions, return updates."""
+    updates: list[dict[str, str]] = []
+
+    try:
+        async with async_session_factory() as db:
+            result = await db.execute(
+                select(TerminalSession).where(TerminalSession.is_active.is_(True))
+            )
+            sessions = result.scalars().all()
+    except Exception:
+        return updates
+
+    for session in sessions:
+        tmux_name = session.tmux_session_name
+        if not tmux_name:
+            continue
+
+        machine_id = str(session.machine_id)
+        conn = ssh_manager._connections.get(machine_id)
+        if conn is None:
+            continue
+
+        display_name = await _detect_pane_display_name(conn, tmux_name)
+        if display_name:
+            updates.append({
+                "session_id": str(session.id),
+                "display_name": display_name,
+            })
+
+    return updates
+
+
+async def _detect_session_statuses(
+    machine_id: str,
+    conn: object,
+) -> list[dict]:
+    """Detect Claude sessions and their statuses on a machine."""
+    sessions = await detect_claude_sessions(conn)  # type: ignore[arg-type]
+    for s in sessions:
+        s["machine_id"] = machine_id
+        s["status"] = await detect_claude_session_status(
+            conn, s["tmux_session"], s["window_index"]  # type: ignore[arg-type]
+        )
+    return sessions
+
+
 async def _build_initial_snapshot() -> dict[str, Any]:
     """Build the initial status snapshot sent on WebSocket connect."""
     machine_statuses: dict[str, str] = {}
@@ -108,13 +197,7 @@ async def _build_initial_snapshot() -> dict[str, Any]:
     for machine_id, conn in ssh_manager._connections.items():
         machine_statuses[machine_id] = ssh_manager.get_status(machine_id)
         try:
-            sessions = await detect_claude_sessions(conn)
-            for s in sessions:
-                waiting = await detect_waiting_for_input(
-                    conn, s["tmux_session"], s["window_index"]
-                )
-                s["machine_id"] = machine_id
-                s["status"] = "waiting" if waiting else "running"
+            sessions = await _detect_session_statuses(machine_id, conn)
             claude_sessions.extend(sessions)
         except Exception as exc:
             logger.warning(
@@ -138,37 +221,38 @@ async def _poll_loop(
     websocket: WebSocket,
     status_queue: asyncio.Queue[dict[str, Any]],
 ) -> None:
-    """Periodically poll machine and Claude Code status, pushing deltas."""
+    """Periodically poll status, pushing deltas.
+
+    Claude sessions every 10s, machine statuses every 30s.
+    """
     prev_claude_sessions: list[dict] = []
+    prev_session_names: dict[str, str] = {}  # session_id -> display_name
+    tick = 0
 
     while True:
-        await asyncio.sleep(STATUS_POLL_INTERVAL)
+        await asyncio.sleep(CLAUDE_POLL_INTERVAL)
+        tick += 1
 
         try:
-            # Poll machine statuses
-            for machine_id in list(ssh_manager._connections.keys()):
-                current_status = ssh_manager.get_status(machine_id)
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "type": "machine_status",
-                            "machine_id": machine_id,
-                            "status": current_status,
-                        }
+            # Machine status every Nth tick
+            if tick % MACHINE_POLL_EVERY_N_TICKS == 0:
+                for machine_id in list(ssh_manager._connections.keys()):
+                    current_status = ssh_manager.get_status(machine_id)
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "machine_status",
+                                "machine_id": machine_id,
+                                "status": current_status,
+                            }
+                        )
                     )
-                )
 
-            # Poll Claude Code sessions
+            # Claude sessions every tick
             all_claude: list[dict] = []
             for machine_id, conn in ssh_manager._connections.items():
                 try:
-                    sessions = await detect_claude_sessions(conn)
-                    for s in sessions:
-                        waiting = await detect_waiting_for_input(
-                            conn, s["tmux_session"], s["window_index"]
-                        )
-                        s["machine_id"] = machine_id
-                        s["status"] = "waiting" if waiting else "running"
+                    sessions = await _detect_session_statuses(machine_id, conn)
                     all_claude.extend(sessions)
                 except Exception:
                     pass
@@ -184,6 +268,24 @@ async def _poll_loop(
                     )
                 )
                 prev_claude_sessions = all_claude
+
+            # Session display names every tick (CWD + branch detection)
+            name_updates = await _poll_session_names()
+            changed = [
+                u for u in name_updates
+                if prev_session_names.get(u["session_id"]) != u["display_name"]
+            ]
+            if changed:
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "session_names",
+                            "updates": changed,
+                        }
+                    )
+                )
+                for u in changed:
+                    prev_session_names[u["session_id"]] = u["display_name"]
 
         except WebSocketDisconnect:
             break

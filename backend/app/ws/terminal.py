@@ -143,6 +143,14 @@ async def _evict_pool() -> None:
             logger.info("TERMINAL: Evicted idle process session=%s", sid)
 
 
+async def close_session_process(session_id: str) -> None:
+    """Close and remove a session's SSH process from the pool."""
+    sp = _pool.pop(session_id, None)
+    if sp is not None:
+        await sp.close()
+        logger.info("TERMINAL: Closed process session=%s", session_id)
+
+
 async def _get_or_create_process(
     session_id: str,
     terminal_session: TerminalSession,

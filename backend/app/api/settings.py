@@ -346,12 +346,79 @@ async def push_claude_code_to_machine(
             )
             await conn.run("chmod 600 ~/.claude/credentials.json", check=True)
 
+        # Push Locus status hooks into Claude Code settings
+        await _push_locus_hooks(conn)
+
         return {"success": True, "message": f"Claude Code {auth_type} pushed to machine"}
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to push Claude Code config: {exc}",
         )
+
+
+# Locus hooks injected into Claude Code settings for status detection
+_LOCUS_HOOKS = {
+    "Stop": [
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "echo '{\"status\":\"waiting\",\"ts\":'$(date +%s)'}' > /tmp/.locus-claude-status",
+                }
+            ],
+        }
+    ],
+    "PreToolUse": [
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "echo '{\"status\":\"running\",\"ts\":'$(date +%s)'}' > /tmp/.locus-claude-status",
+                }
+            ],
+        }
+    ],
+}
+
+
+async def _push_locus_hooks(conn: object) -> None:
+    """Merge Locus status hooks into Claude Code settings on remote machine."""
+    settings_path = "~/.claude/settings.json"
+    existing: dict = {}
+
+    try:
+        result = await conn.run(f"cat {settings_path} 2>/dev/null", check=True)  # type: ignore[union-attr]
+        existing = json.loads(result.stdout.strip())
+    except Exception:
+        pass  # File doesn't exist or invalid JSON — start fresh
+
+    # Merge hooks: preserve user hooks, add/replace Locus hooks
+    hooks = existing.get("hooks", {})
+    for event, rules in _LOCUS_HOOKS.items():
+        event_hooks = hooks.get(event, [])
+        # Remove any existing Locus-managed hooks (identified by marker file path)
+        event_hooks = [
+            h for h in event_hooks
+            if not any(
+                "/tmp/.locus-claude-status" in (hook.get("command", ""))
+                for hook in h.get("hooks", [])
+            )
+        ]
+        event_hooks.extend(rules)
+        hooks[event] = event_hooks
+
+    existing["hooks"] = hooks
+    settings_json = json.dumps(existing, indent=2)
+
+    await conn.run(  # type: ignore[union-attr]
+        f"cat > {settings_path} << 'LOCUS_EOF'\n{settings_json}\nLOCUS_EOF",
+        check=True,
+    )
+    await conn.run(f"chmod 600 {settings_path}", check=True)  # type: ignore[union-attr]
+    logger.info("Pushed Locus status hooks to remote Claude Code settings")
 
 
 # --- Status endpoint ---

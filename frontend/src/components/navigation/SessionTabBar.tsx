@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
 import { apiPost } from "../../hooks/useApi";
 import type { TerminalSession } from "../../types";
 import { SessionTab } from "./SessionTab";
@@ -11,6 +12,7 @@ export function SessionTabBar() {
   const getSessionsForMachine = useSessionStore((s) => s.getSessionsForMachine);
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const claudeSessions = useClaudeSessionStore((s) => s.claudeSessions);
   const [creating, setCreating] = useState(false);
 
   if (!activeMachineId) return null;
@@ -44,10 +46,17 @@ export function SessionTabBar() {
                 .filter((s) => s.session_type === "shell")
                 .indexOf(session) + 1
             : undefined;
+        // Match Claude session status by tmux session name on same machine
+        const claudeMatch = claudeSessions.find(
+          (cs) =>
+            cs.machine_id === activeMachineId &&
+            cs.tmux_session === session.tmux_session_name,
+        );
         return (
           <SessionTab
             key={session.id}
             session={session}
+            claudeStatus={claudeMatch?.status}
             shellIndex={shellIndex}
             totalShells={sessions.filter((s) => s.session_type === "shell").length}
           />
