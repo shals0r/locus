@@ -16,10 +16,13 @@ from app.schemas.machine import (
     MachineUpdate,
     TestConnectionRequest,
     TestConnectionResponse,
+    TmuxCreateResponse,
+    TmuxSessionItem,
+    TmuxSessionsResponse,
 )
 from app.services.auth import get_current_user
 from app.ssh.manager import ssh_manager
-from app.ssh.tmux import list_tmux_sessions
+from app.ssh.tmux import create_terminal_in_tmux, list_tmux_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -274,3 +277,58 @@ async def scan_repos(
             logger.warning("Repo scan failed for path %s: %s", scan_path, exc)
 
     return repos
+
+
+@router.get("/{machine_id}/tmux-sessions", response_model=TmuxSessionsResponse)
+async def get_tmux_sessions(
+    machine_id: UUID,
+    _user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> TmuxSessionsResponse:
+    """List tmux sessions on a connected machine."""
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=404, detail="Machine not found")
+
+    conn = await ssh_manager.get_connection(str(machine.id))
+    if conn is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Machine is not connected",
+        )
+
+    raw_sessions = await list_tmux_sessions(conn)
+    sessions = [
+        TmuxSessionItem(
+            name=str(s["name"]),
+            attached=bool(s["attached"]),
+            last_activity=str(s["last_activity"]),
+        )
+        for s in raw_sessions
+    ]
+    return TmuxSessionsResponse(sessions=sessions)
+
+
+@router.post("/{machine_id}/tmux-sessions", response_model=TmuxCreateResponse)
+async def create_tmux_session(
+    machine_id: UUID,
+    _user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> TmuxCreateResponse:
+    """Create a new tmux session on a connected machine."""
+    machine = await db.get(Machine, machine_id)
+    if machine is None:
+        raise HTTPException(status_code=404, detail="Machine not found")
+
+    conn = await ssh_manager.get_connection(str(machine.id))
+    if conn is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Machine is not connected",
+        )
+
+    process, session_name = await create_terminal_in_tmux(conn)
+    # Close the process — we only need the session created, not attached here.
+    # The terminal WebSocket handler will attach when the user opens the session.
+    process.close()
+    return TmuxCreateResponse(session_name=session_name)

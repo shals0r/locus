@@ -56,3 +56,23 @@ class TestConnectionResponse(BaseModel):
     success: bool
     message: str
     tmux_sessions: list[dict] = []
+
+
+class TmuxSessionItem(BaseModel):
+    """Schema for a single tmux session."""
+
+    name: str
+    attached: bool
+    last_activity: str
+
+
+class TmuxSessionsResponse(BaseModel):
+    """Schema for listing tmux sessions."""
+
+    sessions: list[TmuxSessionItem]
+
+
+class TmuxCreateResponse(BaseModel):
+    """Schema for tmux session creation result."""
+
+    session_name: str
