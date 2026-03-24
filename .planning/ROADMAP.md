@@ -33,11 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Docker + backend skeleton + DB models + frontend skeleton
-- [ ] 01-02-PLAN.md — Auth backend (password, JWT, Fernet encryption)
-- [ ] 01-03-PLAN.md — SSH manager + tmux + WebSocket-SSH bridge
+- [x] 01-02-PLAN.md — Auth backend (password, JWT, Fernet encryption)
+- [x] 01-03-PLAN.md — SSH manager + tmux + WebSocket-SSH bridge
 - [x] 01-04-PLAN.md — Frontend panel layout + stores + navigation
-- [ ] 01-05-PLAN.md — Machine CRUD API + session API + settings API
-- [ ] 01-06-PLAN.md — Auth UI (login, setup wizard) + settings pages
+- [x] 01-05-PLAN.md — Machine CRUD API + session API + settings API
+- [x] 01-06-PLAN.md — Auth UI (login, setup wizard) + settings pages
 - [ ] 01-07-PLAN.md — Terminal rendering + Claude detection + status indicators
 
 **UI hint**: yes
