@@ -11,9 +11,14 @@ import { useSessionStore } from "../../stores/sessionStore";
  *
  * Overlays a ConnectionBanner when the WebSocket is disconnected or failed.
  */
-export function TerminalView({ sessionId }: { sessionId: string }) {
+interface TerminalViewProps {
+  sessionId: string;
+  isVisible: boolean;
+}
+
+export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { status, reconnect } = useTerminal(sessionId, containerRef);
+  const { status, reconnect } = useTerminal(sessionId, containerRef, isVisible);
 
   // Resolve machine name for the connection banner
   const sessions = useSessionStore((s) => s.sessions);

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { apiGet } from "../../hooks/useApi";
@@ -10,29 +10,39 @@ import { TerminalView } from "../terminal/TerminalView";
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const sessions = useSessionStore((s) => s.sessions);
   const setSessions = useSessionStore((s) => s.setSessions);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
 
-  // Fetch sessions when active machine changes
+  const fetchedMachinesRef = useRef<Set<string>>(new Set());
+
+  // Fetch sessions only once per machine (not on every tab switch)
   useEffect(() => {
     if (!activeMachineId) return;
+    if (fetchedMachinesRef.current.has(activeMachineId)) return;
+
+    fetchedMachinesRef.current.add(activeMachineId);
     apiGet<TerminalSession[]>(`/api/sessions?machine_id=${activeMachineId}`)
-      .then((sessions) => {
-        setSessions(sessions);
-        if (sessions.length > 0 && !sessions.find((s) => s.id === activeSessionId)) {
-          setActiveSession(sessions[0].id);
+      .then((fetchedSessions) => {
+        setSessions(fetchedSessions);
+        if (fetchedSessions.length > 0 && !activeSessionId) {
+          setActiveSession(fetchedSessions[0].id);
         }
       })
       .catch(() => {});
-  }, [activeMachineId, setSessions, setActiveSession]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeMachineId, setSessions, setActiveSession, activeSessionId]);
+
+  const machineSessions = sessions.filter(
+    (s) => s.machine_id === activeMachineId,
+  );
 
   return (
     <div className="flex h-full flex-col">
       <MachineTabBar />
       <SessionTabBar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex-1 overflow-hidden">
         {!activeMachineId && (
-          <div className="flex flex-1 items-center justify-center">
+          <div className="flex absolute inset-0 items-center justify-center">
             <div className="text-center">
               <h3 className="text-sm font-semibold text-primary-text">
                 No active sessions
@@ -44,14 +54,23 @@ export function CenterPanel() {
             </div>
           </div>
         )}
-        {activeMachineId && activeSessionId && (
-          <TerminalView sessionId={activeSessionId} />
-        )}
-        {activeMachineId && !activeSessionId && (
-          <div className="flex flex-1 items-center justify-center text-muted text-xs">
+        {activeMachineId && machineSessions.length === 0 && (
+          <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
             No session selected. Click &quot;+&quot; to start a terminal session.
           </div>
         )}
+        {machineSessions.map((s) => (
+          <div
+            key={s.id}
+            className="absolute inset-0"
+            style={{ display: s.id === activeSessionId ? "block" : "none" }}
+          >
+            <TerminalView
+              sessionId={s.id}
+              isVisible={s.id === activeSessionId}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
