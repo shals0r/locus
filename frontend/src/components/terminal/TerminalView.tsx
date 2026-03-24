@@ -9,11 +9,19 @@ interface TerminalViewProps {
   isVisible: boolean;
 }
 
+/**
+ * Terminal component using the Hyper pattern: inactive tabs are positioned
+ * off-screen (left: -9999px) instead of display:none. This preserves xterm.js
+ * dimensions so data arriving while hidden is rendered correctly. xterm's
+ * built-in IntersectionObserver pauses canvas rendering for off-screen
+ * terminals automatically (zero CPU cost).
+ *
+ * On tab switch we just fit + focus. No scrollback replay, no jitter-resize.
+ */
 export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const initDone = useRef(false);
 
   // One-time setup: terminal + WebSocket + wiring. Never torn down until unmount.
@@ -70,73 +78,20 @@ export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
 
     const ws = new WebSocket(wsUrl);
     ws.binaryType = "arraybuffer";
-    wsRef.current = ws;
     const encoder = new TextEncoder();
 
-    /**
-     * Send resize with optional "refresh" flag.
-     * refresh=true tells the backend to jitter-resize tmux so it repaints.
-     * Only used on initial connect and tab switch — not on regular window resizes.
-     */
-    function forceSendSize(refresh = false) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            type: "resize",
-            cols: term.cols,
-            rows: term.rows,
-            ...(refresh ? { refresh: true } : {}),
-          }),
-        );
-      }
-    }
-
     ws.onopen = () => {
-      // Only fit/send when the container is actually visible.
-      // Hidden tabs (display:none) have 0 dimensions — fitting would
-      // send bogus sizes to the backend. The isVisible effect handles
-      // fitting when the tab becomes visible.
-      if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
       requestAnimationFrame(() => {
-        if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
-        try {
-          fitAddon.fit();
-        } catch {}
-        forceSendSize(true);
+        try { fitAddon.fit(); } catch {}
       });
     };
-
-    /**
-     * Safety-net refresh: after output settles (no new writes for 80ms),
-     * force a full viewport repaint. Catches any remaining stale cells
-     * that the renderer's dirty-tracking missed during fast output.
-     */
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     ws.onmessage = (e) => {
       if (e.data instanceof ArrayBuffer) {
         term.write(new Uint8Array(e.data));
       } else {
-        // Filter out JSON control messages from the backend
-        const text = e.data as string;
-        if (text.startsWith("{") && text.includes('"type"')) {
-          try {
-            const msg = JSON.parse(text);
-            if (msg.type === "error" && msg.message) {
-              term.write(`\r\n\x1b[31m⚠ ${msg.message}\x1b[0m\r\n`);
-              return;
-            }
-          } catch {
-            // Not valid JSON, write as normal terminal output
-          }
-        }
         term.write(e.data);
       }
-      // After output settles, force full viewport repaint
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        term.refresh(0, term.rows - 1);
-      }, 80);
     };
 
     term.onData((data) => {
@@ -153,13 +108,9 @@ export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
 
     let fitTimer: ReturnType<typeof setTimeout> | null = null;
     const observer = new ResizeObserver(() => {
-      // Don't fit when hidden (display:none gives 0 dimensions, corrupts tmux)
-      if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
       if (fitTimer) clearTimeout(fitTimer);
       fitTimer = setTimeout(() => {
-        try {
-          fitAddon.fit();
-        } catch {}
+        try { fitAddon.fit(); } catch {}
       }, 50);
     });
     observer.observe(container);
@@ -167,46 +118,28 @@ export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
     return () => {
       initDone.current = false;
       if (fitTimer) clearTimeout(fitTimer);
-      if (refreshTimer) clearTimeout(refreshTimer);
       observer.disconnect();
       ws.onopen = null;
       ws.onclose = null;
       ws.onerror = null;
       ws.onmessage = null;
       ws.close();
-      wsRef.current = null;
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
     };
   }, [sessionId]);
 
-  // When tab becomes visible: refit to correct dimensions and force tmux redraw
+  // Tab switch: repaint buffer, fit, focus
   useEffect(() => {
     if (!isVisible || !fitRef.current || !termRef.current) return;
     const term = termRef.current;
     const fit = fitRef.current;
-    const ws = wsRef.current;
-    // Double rAF: first for display:block layout, second for accurate measurement
     const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          fit.fit();
-        } catch {}
-        // Force-send resize with refresh flag so tmux redraws at correct size
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: "resize",
-              cols: term.cols,
-              rows: term.rows,
-              refresh: true,
-            }),
-          );
-        }
-        term.scrollToBottom();
-        term.focus();
-      });
+      try { fit.fit(); } catch {}
+      // Force full repaint — renderer was paused while off-screen
+      term.refresh(0, term.rows - 1);
+      term.focus();
     });
     return () => cancelAnimationFrame(id);
   }, [isVisible]);

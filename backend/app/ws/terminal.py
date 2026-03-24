@@ -120,6 +120,27 @@ class SessionProcess:
 
 # Global pool: one process per session, survives WS reconnects
 _pool: dict[str, SessionProcess] = {}
+# Max concurrent SSH processes — leave headroom for heartbeat + other channels
+_MAX_POOL = 6
+
+
+async def _evict_pool() -> None:
+    """Close dead processes and evict oldest idle ones if over limit."""
+    # Remove dead entries
+    dead = [sid for sid, sp in _pool.items() if not sp.alive]
+    for sid in dead:
+        sp = _pool.pop(sid)
+        await sp.close()
+
+    # Evict idle (no WS attached) processes if over limit, oldest first
+    if len(_pool) >= _MAX_POOL:
+        idle = [(sid, sp) for sid, sp in _pool.items() if sp._ws is None]
+        for sid, sp in idle:
+            if len(_pool) < _MAX_POOL:
+                break
+            _pool.pop(sid)
+            await sp.close()
+            logger.info("TERMINAL: Evicted idle process session=%s", sid)
 
 
 async def _get_or_create_process(
@@ -140,6 +161,9 @@ async def _get_or_create_process(
     if existing is not None:
         await existing.close()
         _pool.pop(session_id, None)
+
+    # Evict dead/idle processes before creating a new channel
+    await _evict_pool()
 
     # Create new
     tmux_name_to_use = terminal_session.tmux_session_name
@@ -225,16 +249,6 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     # Attach this WebSocket as the active output target
     sp.attach(websocket)
 
-    # Replay buffered scrollback so reconnecting clients see terminal history.
-    # The jitter-resize triggered by the client's first "refresh" resize will
-    # repaint the current screen cleanly on top of this.
-    scrollback = sp.get_scrollback()
-    if scrollback:
-        try:
-            await websocket.send_bytes(scrollback)
-        except Exception:
-            pass
-
     try:
         # Read from WebSocket → SSH stdin
         while True:
@@ -248,15 +262,7 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
                 try:
                     msg = json.loads(message["text"])
                     if msg.get("type") == "resize":
-                        new_cols = int(msg.get("cols", 120))
-                        new_rows = int(msg.get("rows", 40))
-                        if msg.get("refresh"):
-                            # Jitter-resize: briefly shrink by 1 col then set
-                            # correct size. Forces tmux to repaint the full
-                            # screen (used on initial connect and tab switch).
-                            sp.resize(max(new_cols - 1, 1), new_rows)
-                            await asyncio.sleep(0.05)
-                        sp.resize(new_cols, new_rows)
+                        sp.resize(int(msg.get("cols", 120)), int(msg.get("rows", 40)))
                 except (json.JSONDecodeError, KeyError, TypeError):
                     pass
     except WebSocketDisconnect:

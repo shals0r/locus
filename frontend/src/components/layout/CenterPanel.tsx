@@ -68,18 +68,21 @@ export function CenterPanel() {
                 No session selected. Click &quot;+&quot; to start a terminal session.
               </div>
             )}
-            {machineSessions.map((s) => (
-              <div
-                key={s.id}
-                className="absolute inset-0"
-                style={{ display: s.id === activeSessionId ? "block" : "none" }}
-              >
-                <TerminalView
-                  sessionId={s.id}
-                  isVisible={s.id === activeSessionId}
-                />
-              </div>
-            ))}
+            {machineSessions.map((s) => {
+              const active = s.id === activeSessionId;
+              return (
+                <div
+                  key={s.id}
+                  className="absolute inset-0"
+                  style={active ? undefined : { transform: "translateX(-200%)", pointerEvents: "none" }}
+                >
+                  <TerminalView
+                    sessionId={s.id}
+                    isVisible={active}
+                  />
+                </div>
+              );
+            })}
           </div>
         </>
       )}
