@@ -40,6 +40,21 @@ async def list_tmux_sessions(
         return []  # no tmux server running
 
 
+async def check_tmux_session_exists(
+    conn: asyncssh.SSHClientConnection,
+    session_name: str,
+) -> bool:
+    """Check if a tmux session with the given name exists."""
+    try:
+        await conn.run(
+            f"tmux has-session -t {session_name}",
+            check=True,
+        )
+        return True
+    except asyncssh.ProcessError:
+        return False
+
+
 async def create_terminal_in_tmux(
     conn: asyncssh.SSHClientConnection,
     session_name: str | None = None,

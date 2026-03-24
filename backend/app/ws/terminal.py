@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.database import async_session_factory
 from app.models.session import TerminalSession
 from app.ssh.manager import ssh_manager
-from app.ssh.tmux import create_terminal_in_tmux
+from app.ssh.tmux import check_tmux_session_exists, create_terminal_in_tmux
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +86,31 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     process = None
     try:
         logger.warning("TERMINAL: Creating tmux process for session=%s machine=%s tmux=%s", session_id, machine_id, terminal_session.tmux_session_name)
+
+        # If session has a tmux name, verify it still exists on the remote
+        tmux_name_to_use = terminal_session.tmux_session_name
+        if tmux_name_to_use:
+            session_exists = await check_tmux_session_exists(conn, tmux_name_to_use)
+            if not session_exists:
+                logger.info("TERMINAL: Tmux session %s no longer exists, will create new", tmux_name_to_use)
+                tmux_name_to_use = None
+
         process, tmux_name = await create_terminal_in_tmux(
             conn,
-            session_name=terminal_session.tmux_session_name,
+            session_name=tmux_name_to_use,
             working_dir=terminal_session.repo_path,
             cols=cols,
             rows=rows,
         )
+
+        # Give tmux a moment to send initial screen redraw on reattach
+        await asyncio.sleep(0.1)
+
+        # Force resize to sync terminal dimensions after (re)attach
+        try:
+            process.channel.set_terminal_size(cols, rows)
+        except Exception:
+            pass
 
         # Save the tmux session name back to DB if it was auto-generated
         if not terminal_session.tmux_session_name:
@@ -122,17 +140,14 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     except Exception:
         logger.exception("TERMINAL: Error for session=%s", session_id)
     finally:
-        # Detach from tmux rather than killing — session persists for reattach
+        # Close the SSH process channel — tmux session persists for reattach
         if process is not None:
             try:
-                # Send tmux detach key sequence (Ctrl-B d) to cleanly detach
-                process.stdin.write(b"\x02d")
-                await asyncio.sleep(0.1)
                 process.close()
-                await process.wait_closed()
+                await asyncio.wait_for(process.wait_closed(), timeout=2.0)
             except Exception:
                 pass
-        logger.warning("TERMINAL: Detached session=%s", session_id)
+        logger.info("TERMINAL: Disconnected WS for session=%s (tmux persists)", session_id)
 
 
 async def _read_from_ssh(
