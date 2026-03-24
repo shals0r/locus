@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-24T00:20:03.404Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-24T00:25:49.037Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 01 (infrastructure-terminal-core) — EXECUTING
-Plan: 2 of 7
+Plan: 5 of 7
 
 ## Performance Metrics
 
@@ -47,6 +47,9 @@ Plan: 2 of 7
 
 *Updated after each plan completion*
 | Phase 01 P01 | 3min | 2 tasks | 27 files |
+| Phase 01 P02 | 2min | 2 tasks | 8 files |
+| Phase 01 P03 | 3min | 2 tasks | 7 files |
+| Phase 01 P04 | 3min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -58,6 +61,12 @@ Recent decisions affecting current work:
 - [Roadmap]: Coarse granularity -- 4 phases compressing 44 requirements. Phases 3 and 4 both depend on Phase 2 and can potentially overlap.
 - [Phase 01]: Used AliasChoices for LOCUS_DB_URL env var mapping (pydantic-settings v2 pattern)
 - [Phase 01]: Tailwind v4 CSS-based @theme block for design tokens instead of JS config
+- [Phase 01]: Service layer pattern: auth logic in services/, API routes in api/, schemas in schemas/
+- [Phase 01]: One Zustand store per domain (auth, machines, sessions, panels) for clean separation
+- [Phase 01]: Panel ref synced bidirectionally with Zustand store for programmatic and drag collapse
+- [Phase 01]: Always wrap terminal sessions in tmux -- no bare PTY sessions
+- [Phase 01]: WebSocket auth via token query param; JWT validation deferred to auth service
+- [Phase 01]: Raw bytes mode (encoding=None) for binary transparency in SSH terminal I/O
 
 ### Pending Todos
 
@@ -69,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T00:20:03.398Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-24T00:25:49.031Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None

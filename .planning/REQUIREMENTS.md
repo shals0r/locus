@@ -7,10 +7,10 @@
 
 ### Terminal & Machine Management
 
-- [ ] **TERM-01**: User can connect to remote machines via SSH with persistent auto-reconnecting connections
-- [ ] **TERM-02**: User gets a full terminal emulator (xterm.js) with 256-color, mouse events, and resize support
+- [x] **TERM-01**: User can connect to remote machines via SSH with persistent auto-reconnecting connections
+- [x] **TERM-02**: User gets a full terminal emulator (xterm.js) with 256-color, mouse events, and resize support
 - [ ] **TERM-03**: User can open multiple terminal tabs, each bound to a specific repo on a specific machine
-- [ ] **TERM-04**: User can attach to existing tmux sessions on remote machines and reconnect gracefully on SSH drop
+- [x] **TERM-04**: User can attach to existing tmux sessions on remote machines and reconnect gracefully on SSH drop
 - [ ] **TERM-05**: User can see machine connection status at a glance (online/offline indicators)
 - [ ] **TERM-06**: User can see all active Claude Code sessions across all repos and machines in one view
 - [ ] **TERM-07**: User receives a feed notification when a Claude Code session is waiting for input
@@ -55,8 +55,8 @@
 
 - [ ] **UI-01**: User can open a command palette to fuzzy-search and jump to any repo, machine, ticket, or integration
 - [ ] **UI-02**: Every primary action in Locus has a keyboard shortcut
-- [ ] **UI-03**: User can collapse, expand, and resize the three main panels (sidebar, center, feed) independently
-- [ ] **UI-04**: User can enter focus mode by collapsing panels to work in full-width terminal or full-width feed
+- [x] **UI-03**: User can collapse, expand, and resize the three main panels (sidebar, center, feed) independently
+- [x] **UI-04**: User can enter focus mode by collapsing panels to work in full-width terminal or full-width feed
 
 ### Skills
 
@@ -66,9 +66,9 @@
 
 ### Auth & Security
 
-- [ ] **AUTH-01**: User can set up their Locus instance with a password on first run
-- [ ] **AUTH-02**: User can store credentials for external services (GitLab, GitHub, Jira, Google) encrypted in Postgres
-- [ ] **AUTH-03**: SSH key references are stored securely (paths to keys, not the keys themselves)
+- [x] **AUTH-01**: User can set up their Locus instance with a password on first run
+- [x] **AUTH-02**: User can store credentials for external services (GitLab, GitHub, Jira, Google) encrypted in Postgres
+- [x] **AUTH-03**: SSH key references are stored securely (paths to keys, not the keys themselves)
 - [ ] **AUTH-04**: User configures Claude Code auth once (API key, Bedrock credentials, or subscription/OAuth) and Locus replicates that config when launching sessions on any connected machine
 
 ### Deployment
@@ -119,10 +119,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | Phase 1 | Pending |
-| TERM-02 | Phase 1 | Pending |
+| TERM-01 | Phase 1 | Complete |
+| TERM-02 | Phase 1 | Complete |
 | TERM-03 | Phase 1 | Pending |
-| TERM-04 | Phase 1 | Pending |
+| TERM-04 | Phase 1 | Complete |
 | TERM-05 | Phase 1 | Pending |
 | TERM-06 | Phase 1 | Pending |
 | TERM-07 | Phase 1 | Pending |
@@ -152,14 +152,14 @@
 | INTG-05 | Phase 4 | Pending |
 | UI-01 | Phase 2 | Pending |
 | UI-02 | Phase 2 | Pending |
-| UI-03 | Phase 1 | Pending |
-| UI-04 | Phase 1 | Pending |
+| UI-03 | Phase 1 | Complete |
+| UI-04 | Phase 1 | Complete |
 | SKIL-01 | Phase 4 | Pending |
 | SKIL-02 | Phase 4 | Pending |
 | SKIL-03 | Phase 4 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Pending |
 | DEPL-01 | Phase 1 | Complete |
 | DEPL-02 | Phase 1 | Complete |
