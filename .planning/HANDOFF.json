@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-03-24T12:36:48.130Z",
+  "phase": "01",
+  "phase_name": "infrastructure-terminal-core",
+  "phase_dir": ".planning/phases/01-infrastructure-terminal-core",
+  "plan": 7,
+  "task": 3,
+  "total_tasks": 15,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": "01-01", "name": "Docker + FastAPI + React skeletons", "status": "done", "commit": "d17f915"},
+    {"id": "01-02", "name": "Auth backend (bcrypt, JWT, Fernet)", "status": "done", "commit": "d2cdfcf"},
+    {"id": "01-03", "name": "SSH manager + WebSocket bridge", "status": "done", "commit": "dd601c4"},
+    {"id": "01-04", "name": "Three-panel layout + Zustand stores", "status": "done", "commit": "bedb152"},
+    {"id": "01-05", "name": "REST API (machines, sessions, settings)", "status": "done", "commit": "97c27a1"},
+    {"id": "01-06", "name": "Auth UI + machine forms + settings pages", "status": "done", "commit": "307259b"},
+    {"id": "01-07", "name": "Terminal rendering + live status", "status": "done", "commit": "c41a6df"}
+  ],
+  "remaining_tasks": [
+    {"id": "01-07-T3", "name": "Human verification: end-to-end Docker Compose test", "status": "blocked"},
+    {"id": "phase-verify", "name": "Phase verification (gsd-verifier)", "status": "not_started"}
+  ],
+  "blockers": [
+    {
+      "description": "Rootless Docker cannot start containers — SSH session lacks systemd user scope for cgroup creation",
+      "type": "human_action",
+      "workaround": "PAM fix applied (UsePAM yes + pam_systemd.so added to /etc/pam.d/sshd, sshd restarted). Need to restart tmux under a NEW SSH session for the fix to take effect. Current tmux server is still in old ssh.service cgroup."
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Restart tmux session to pick up systemd user scope from PAM fix",
+      "context": "Disconnect SSH, reconnect (new session gets pam_systemd scope), start fresh tmux, then run: cd ~/locus && docker compose --profile dev up -d",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {"decision": "Bumped @vitejs/plugin-react from ^4.0.0 to ^5.2.0", "rationale": "v4 not compatible with Vite 8", "phase": "01"},
+    {"decision": "Fixed TS2532 errors with optional chaining in ClaudeCodeSettings.tsx and CredentialSettings.tsx", "rationale": "Object possibly undefined when indexing result maps", "phase": "01"},
+    {"decision": "Applied PAM fix (UsePAM yes + pam_systemd.so) instead of polkit rules or cgroupfs", "rationale": "Most secure approach, matches original VPS setup guide intent", "phase": "01"}
+  ],
+  "uncommitted_files": [
+    ".planning/REQUIREMENTS.md",
+    ".planning/STATE.md",
+    ".planning/config.json",
+    "frontend/package.json",
+    "frontend/src/components/settings/ClaudeCodeSettings.tsx",
+    "frontend/src/components/settings/CredentialSettings.tsx",
+    ".gitignore",
+    ".env",
+    "frontend/package-lock.json"
+  ],
+  "next_action": "Reconnect SSH (fresh session with systemd scope) → restart tmux → docker compose --profile dev up -d → verify app loads at localhost:5173 → run phase verification",
+  "context_notes": "All 7 plans executed successfully across 4 waves. All code is written and committed. The only remaining work is: (1) restart tmux to pick up the PAM fix, (2) docker compose up, (3) manual end-to-end verification, (4) phase verification via gsd-verifier. The .env file and .gitignore are new untracked files that should be committed (but NOT .env — it has secrets)."
+}
