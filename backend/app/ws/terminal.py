@@ -257,6 +257,14 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     # Attach this WebSocket as the active output target
     sp.attach(websocket)
 
+    # Replay buffered output so reconnecting clients see previous content
+    scrollback = sp.get_scrollback()
+    if scrollback:
+        try:
+            await websocket.send_bytes(scrollback)
+        except Exception:
+            pass
+
     try:
         # Read from WebSocket → SSH stdin
         while True:
