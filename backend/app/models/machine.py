@@ -20,6 +20,9 @@ class Machine(Base):
     port: Mapped[int] = mapped_column(Integer, default=22)
     username: Mapped[str] = mapped_column(String(255))
     ssh_key_path: Mapped[str] = mapped_column(String(512))
+    ssh_key_passphrase: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True, default=None
+    )
     repo_scan_paths: Mapped[list[str]] = mapped_column(
         JSON, default=list
     )

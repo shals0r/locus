@@ -27,8 +27,9 @@ export function CenterPanel() {
     apiGet<TerminalSession[]>(`/api/sessions?machine_id=${activeMachineId}`)
       .then((fetchedSessions) => {
         setSessions(fetchedSessions);
-        if (fetchedSessions.length > 0 && !activeSessionId) {
-          setActiveSession(fetchedSessions[0].id);
+        const first = fetchedSessions[0];
+        if (first && !activeSessionId) {
+          setActiveSession(first.id);
         }
       })
       .catch(() => {});

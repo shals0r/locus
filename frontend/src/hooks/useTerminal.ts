@@ -1,13 +1,11 @@
-import { useEffect, useRef, useCallback, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { getWsUrl } from "../api/client";
-import { useWebSocket, type WsStatus } from "./useWebSocket";
 
-/**
- * Tokyo Night color theme for xterm.js.
- */
+export type WsStatus = "connecting" | "connected" | "disconnected" | "failed";
+
 const TOKYO_NIGHT_THEME = {
   background: "#1a1b26",
   foreground: "#c0caf5",
@@ -34,62 +32,32 @@ const TOKYO_NIGHT_THEME = {
 interface UseTerminalReturn {
   status: WsStatus;
   reconnect: () => void;
-  disconnect: () => void;
 }
 
 /**
- * Hook that manages xterm.js lifecycle: terminal instance, WebSocket I/O,
- * fit addon for resize, and debounced resize propagation to the backend.
- *
- * Does NOT use @xterm/addon-attach -- uses a custom binary WebSocket handler
- * per RESEARCH.md recommendation for binary transparency.
+ * Self-contained terminal hook. Creates xterm.js instance, WebSocket,
+ * and wires all I/O in a single effect to avoid React StrictMode ref races.
  */
 export function useTerminal(
   sessionId: string | null,
-  containerRef: RefObject<HTMLDivElement | null>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
   isVisible: boolean = true,
 ): UseTerminalReturn {
-  const termRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const encoder = useRef(new TextEncoder());
+  const [status, setStatus] = useState<WsStatus>("disconnected");
+  const reconnectRef = useRef(0); // bump to force reconnect
 
-  const wsUrl = sessionId ? getWsUrl(`/ws/terminal/${sessionId}`) : null;
-
-  const handleMessage = useCallback((event: MessageEvent) => {
-    const term = termRef.current;
-    if (!term) return;
-
-    if (event.data instanceof ArrayBuffer) {
-      term.write(new Uint8Array(event.data));
-    } else if (typeof event.data === "string") {
-      // JSON control messages from backend
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "error") {
-          term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
-        }
-      } catch {
-        // Not JSON, write as text
-        term.write(event.data);
-      }
-    }
-  }, []);
-
-  const { status, send, reconnect, disconnect } = useWebSocket(wsUrl, {
-    binaryType: "arraybuffer",
-    onMessage: handleMessage,
-  });
-
-  // Create terminal instance once on mount
+  // Single effect that owns: terminal + websocket + all wiring
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !sessionId || !isVisible) return;
 
-    // Don't create a new terminal if one already exists
-    if (termRef.current) return;
+    const url = getWsUrl(`/ws/terminal/${sessionId}`);
+    const encoder = new TextEncoder();
+    let ws: WebSocket | null = null;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let alive = true;
 
+    // 1. Create terminal
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: "JetBrains Mono, monospace",
@@ -99,106 +67,95 @@ export function useTerminal(
     });
 
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
-
     term.loadAddon(fitAddon);
-    term.loadAddon(webLinksAddon);
-
+    term.loadAddon(new WebLinksAddon());
     term.open(container);
 
-    // Initial fit after a frame to let the DOM settle
-    requestAnimationFrame(() => {
-      fitAddon.fit();
-    });
+    // 2. Create WebSocket
+    ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
+    setStatus("connecting");
 
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
-
-    return () => {
-      if (resizeTimerRef.current) {
-        clearTimeout(resizeTimerRef.current);
-        resizeTimerRef.current = null;
-      }
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-        resizeObserverRef.current = null;
-      }
-      term.dispose();
-      termRef.current = null;
-      fitAddonRef.current = null;
-    };
-  }, [containerRef]);
-
-  // Refit terminal when it becomes visible (tab switch back)
-  useEffect(() => {
-    if (!isVisible) return;
-    const fitAddon = fitAddonRef.current;
-    if (!fitAddon) return;
-
-    // Use two frames: one for DOM layout, one for fit calculation
-    const frameId = requestAnimationFrame(() => {
+    ws.onopen = () => {
+      if (!alive) return;
+      console.log("[TERM] WS open for", sessionId);
+      setStatus("connected");
+      // Fit now that connection is live — sends initial resize
       requestAnimationFrame(() => {
-        try {
-          fitAddon.fit();
-        } catch {
-          // Terminal not ready
+        if (alive) {
+          try { fitAddon.fit(); } catch {}
         }
       });
-    });
+    };
 
-    return () => cancelAnimationFrame(frameId);
-  }, [isVisible]);
-
-  // Wire up terminal data -> WebSocket (send user input)
-  useEffect(() => {
-    const term = termRef.current;
-    if (!term) return;
-
-    const disposable = term.onData((data: string) => {
-      send(encoder.current.encode(data));
-    });
-
-    return () => disposable.dispose();
-  }, [sessionId, send]);
-
-  // Wire up terminal resize -> debounced WebSocket message
-  useEffect(() => {
-    const term = termRef.current;
-    if (!term) return;
-
-    const disposable = term.onResize(({ cols, rows }) => {
-      if (resizeTimerRef.current) {
-        clearTimeout(resizeTimerRef.current);
+    ws.onmessage = (event) => {
+      if (!alive) return;
+      if (event.data instanceof ArrayBuffer) {
+        term.write(new Uint8Array(event.data));
+      } else if (typeof event.data === "string") {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "error") {
+            term.write(`\r\n\x1b[31m${msg.message}\x1b[0m\r\n`);
+          }
+        } catch {
+          term.write(event.data);
+        }
       }
-      resizeTimerRef.current = setTimeout(() => {
-        send(JSON.stringify({ type: "resize", cols, rows }));
+    };
+
+    ws.onclose = () => {
+      if (!alive) return;
+      console.log("[TERM] WS closed for", sessionId);
+      setStatus("disconnected");
+    };
+
+    ws.onerror = () => {};
+
+    // 3. Wire terminal input → WebSocket
+    const onDataDisposable = term.onData((data: string) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(encoder.encode(data));
+      }
+    });
+
+    // 4. Wire terminal resize → WebSocket (debounced)
+    const onResizeDisposable = term.onResize(({ cols, rows }) => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        }
       }, 150);
     });
 
-    return () => disposable.dispose();
-  }, [sessionId, send]);
-
-  // ResizeObserver on container -> fitAddon.fit() for panel resize handling
-  useEffect(() => {
-    const container = containerRef.current;
-    const fitAddon = fitAddonRef.current;
-    if (!container || !fitAddon) return;
-
+    // 5. ResizeObserver → fit terminal when container resizes
     const observer = new ResizeObserver(() => {
-      try {
-        fitAddon.fit();
-      } catch {
-        // Terminal may not be ready yet
-      }
+      try { fitAddon.fit(); } catch {}
     });
     observer.observe(container);
-    resizeObserverRef.current = observer;
 
+    // Cleanup
     return () => {
+      alive = false;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      onDataDisposable.dispose();
+      onResizeDisposable.dispose();
       observer.disconnect();
-      resizeObserverRef.current = null;
+      if (ws) {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
+      }
+      term.dispose();
     };
-  }, [sessionId, containerRef]);
+  }, [sessionId, isVisible, containerRef, reconnectRef.current]);
 
-  return { status, reconnect, disconnect };
+  const reconnect = () => {
+    reconnectRef.current += 1;
+  };
+
+  return { status, reconnect };
 }

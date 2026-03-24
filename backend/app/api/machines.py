@@ -21,12 +21,20 @@ from app.schemas.machine import (
     TmuxSessionsResponse,
 )
 from app.services.auth import get_current_user
+from app.services.crypto import decrypt_value, encrypt_value
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import create_terminal_in_tmux, list_tmux_sessions
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/machines", tags=["machines"])
+
+
+def _get_passphrase(machine: Machine) -> str | None:
+    """Decrypt the stored SSH key passphrase, or return None."""
+    if machine.ssh_key_passphrase:
+        return decrypt_value(machine.ssh_key_passphrase)
+    return None
 
 
 def _machine_to_response(machine: Machine) -> MachineResponse:
@@ -67,6 +75,7 @@ async def create_machine(
         port=body.port,
         username=body.username,
         ssh_key_path=body.ssh_key_path,
+        ssh_key_passphrase=encrypt_value(body.ssh_key_passphrase) if body.ssh_key_passphrase else None,
         repo_scan_paths=body.repo_scan_paths,
     )
     db.add(machine)
@@ -80,6 +89,7 @@ async def create_machine(
             port=machine.port,
             username=machine.username,
             ssh_key_path=machine.ssh_key_path,
+            ssh_key_passphrase=_get_passphrase(machine),
         )
     except Exception as exc:
         logger.warning("Auto-connect failed for machine %s: %s", machine.name, exc)
@@ -116,7 +126,9 @@ async def update_machine(
     update_data = body.model_dump(exclude_unset=True)
 
     for field, value in update_data.items():
-        if field in ("host", "port", "username", "ssh_key_path"):
+        if field in ("host", "port", "username", "ssh_key_path", "ssh_key_passphrase"):
+            if field == "ssh_key_passphrase":
+                value = encrypt_value(value) if value else None
             if getattr(machine, field) != value:
                 connection_changed = True
         setattr(machine, field, value)
@@ -133,6 +145,7 @@ async def update_machine(
                 port=machine.port,
                 username=machine.username,
                 ssh_key_path=machine.ssh_key_path,
+                ssh_key_passphrase=_get_passphrase(machine),
             )
         except Exception as exc:
             logger.warning("Reconnect after update failed for machine %s: %s", machine.name, exc)
@@ -166,11 +179,15 @@ async def test_connection(
     Connects with a 10-second timeout, lists tmux sessions on success.
     """
     try:
+        if body.ssh_key_passphrase:
+            client_keys = [asyncssh.read_private_key(body.ssh_key_path, passphrase=body.ssh_key_passphrase)]
+        else:
+            client_keys = [body.ssh_key_path]
         conn = await asyncssh.connect(
             body.host,
             port=body.port,
             username=body.username,
-            client_keys=[body.ssh_key_path],
+            client_keys=client_keys,
             known_hosts=None,
             login_timeout=10,
         )
@@ -208,6 +225,7 @@ async def connect_machine(
             port=machine.port,
             username=machine.username,
             ssh_key_path=machine.ssh_key_path,
+            ssh_key_passphrase=_get_passphrase(machine),
         )
     except Exception as exc:
         raise HTTPException(

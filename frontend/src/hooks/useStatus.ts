@@ -70,6 +70,10 @@ export function useStatus() {
     };
 
     return () => {
+      ws.onmessage = null;
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
       ws.close();
       wsRef.current = null;
     };

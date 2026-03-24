@@ -10,6 +10,7 @@ export interface Machine {
   port: number;
   username: string;
   ssh_key_path: string;
+  ssh_key_passphrase?: string;
   repo_scan_paths: string[];
   status: MachineStatus;
 }

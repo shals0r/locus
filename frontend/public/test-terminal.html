@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Terminal Test</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <style>body{margin:0;background:#1a1b26;color:#fff;font-family:monospace}#info{padding:10px;font-size:13px}#terminal{width:100%;height:80vh}</style>
+</head>
+<body>
+  <div id="info">Loading...</div>
+  <div id="terminal"></div>
+  <script>
+    const info = document.getElementById('info');
+    const token = localStorage.getItem('locus_token');
+    if (!token) {
+      info.textContent = 'No token in localStorage. Log in to the main app first.';
+      throw new Error('no token');
+    }
+
+    // Fetch sessions to get a valid session ID
+    fetch('/api/machines', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.json())
+      .then(machines => {
+        if (!machines.length) { info.textContent = 'No machines'; return; }
+        const machineId = machines[0].id;
+        info.textContent = 'Machine: ' + machines[0].name + ' (' + machines[0].status + '). Creating session...';
+
+        return fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ machine_id: machineId, session_type: 'shell' })
+        }).then(r => r.json());
+      })
+      .then(session => {
+        if (!session) return;
+        info.textContent = 'Session: ' + session.id + '. Connecting WebSocket...';
+
+        const term = new Terminal({
+          cursorBlink: true,
+          fontSize: 14,
+          theme: { background: '#1a1b26', foreground: '#c0caf5', cursor: '#c0caf5' }
+        });
+        term.open(document.getElementById('terminal'));
+
+        const wsUrl = (location.protocol === 'https:' ? 'wss:' : 'ws:') +
+          '//' + location.host + '/ws/terminal/' + session.id + '?token=' + encodeURIComponent(token);
+
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+          info.textContent = 'CONNECTED. Type something!';
+          info.style.color = '#9ece6a';
+        };
+
+        ws.onmessage = (e) => {
+          if (e.data instanceof ArrayBuffer) {
+            term.write(new Uint8Array(e.data));
+          } else {
+            term.write(e.data);
+          }
+        };
+
+        ws.onclose = (e) => {
+          info.textContent = 'WS CLOSED: code=' + e.code + ' reason=' + e.reason;
+          info.style.color = '#f7768e';
+        };
+
+        ws.onerror = () => {
+          info.textContent = 'WS ERROR';
+          info.style.color = '#f7768e';
+        };
+
+        const encoder = new TextEncoder();
+        term.onData(data => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(encoder.encode(data));
+          }
+        });
+
+        term.onResize(({ cols, rows }) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+          }
+        });
+      })
+      .catch(err => { info.textContent = 'Error: ' + err.message; info.style.color = '#f7768e'; });
+  </script>
+</body>
+</html>

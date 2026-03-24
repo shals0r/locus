@@ -24,3 +24,17 @@ body {
   line-height: 1.5;
   margin: 0;
 }
+
+/* Ensure xterm terminal fills its container */
+.xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.xterm-viewport {
+  overflow-y: auto !important;
+}
+
+.xterm-screen {
+  height: 100%;
+}

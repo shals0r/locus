@@ -12,6 +12,7 @@ class MachineCreate(BaseModel):
     port: int = Field(default=22, ge=1, le=65535)
     username: str = Field(min_length=1)
     ssh_key_path: str = Field(min_length=1)
+    ssh_key_passphrase: Optional[str] = None
     repo_scan_paths: list[str] = Field(default_factory=list)
 
 
@@ -23,6 +24,7 @@ class MachineUpdate(BaseModel):
     port: Optional[int] = None
     username: Optional[str] = None
     ssh_key_path: Optional[str] = None
+    ssh_key_passphrase: Optional[str] = None
     repo_scan_paths: Optional[list[str]] = None
 
 
@@ -48,6 +50,7 @@ class TestConnectionRequest(BaseModel):
     port: int = 22
     username: str
     ssh_key_path: str
+    ssh_key_passphrase: Optional[str] = None
 
 
 class TestConnectionResponse(BaseModel):

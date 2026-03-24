@@ -36,9 +36,23 @@ export function SessionTabBar() {
 
   return (
     <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
-      {sessions.map((session) => (
-        <SessionTab key={session.id} session={session} />
-      ))}
+      {sessions.map((session, idx) => {
+        // Compute shell index for display (Shell 1, Shell 2, etc.)
+        const shellIndex =
+          session.session_type === "shell"
+            ? sessions
+                .filter((s) => s.session_type === "shell")
+                .indexOf(session) + 1
+            : undefined;
+        return (
+          <SessionTab
+            key={session.id}
+            session={session}
+            shellIndex={shellIndex}
+            totalShells={sessions.filter((s) => s.session_type === "shell").length}
+          />
+        );
+      })}
       <button
         onClick={handleNewSession}
         disabled={creating}

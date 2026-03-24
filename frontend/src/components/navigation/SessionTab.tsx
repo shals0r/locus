@@ -5,9 +5,13 @@ import { useSessionStore } from "../../stores/sessionStore";
 export function SessionTab({
   session,
   claudeStatus,
+  shellIndex,
+  totalShells,
 }: {
   session: TerminalSession;
   claudeStatus?: ClaudeStatus;
+  shellIndex?: number;
+  totalShells?: number;
 }) {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
@@ -17,9 +21,16 @@ export function SessionTab({
   const isClaude = session.session_type === "claude";
   const isWaiting = isClaude && claudeStatus === "waiting";
 
+  // Show repo folder name if available, otherwise "Shell" for shell sessions
+  // Only show tmux name if it's human-readable (not auto-generated locus-xxxx)
+  const isAutoName = session.tmux_session_name?.startsWith("locus-");
   const label = session.repo_path
     ? session.repo_path.split("/").pop()
-    : session.tmux_session_name ?? "Shell";
+    : isClaude
+      ? "Claude"
+      : isAutoName || !session.tmux_session_name
+        ? "Shell"
+        : session.tmux_session_name;
 
   return (
     <button
@@ -39,7 +50,11 @@ export function SessionTab({
       {isWaiting && (
         <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
       )}
-      <span className="truncate max-w-[120px]">{label}</span>
+      <span className="truncate max-w-[120px]">
+        {label === "Shell" && totalShells && totalShells > 1
+          ? `Shell ${shellIndex}`
+          : label}
+      </span>
       <span
         role="button"
         tabIndex={0}

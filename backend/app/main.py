@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     from sqlalchemy import select
     from app.database import async_session_factory
     from app.models.machine import Machine
+    from app.services.crypto import decrypt_value
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -37,12 +38,14 @@ async def lifespan(app: FastAPI):
         machines = result.scalars().all()
         for machine in machines:
             try:
+                passphrase = decrypt_value(machine.ssh_key_passphrase) if machine.ssh_key_passphrase else None
                 await ssh_manager.connect(
                     machine_id=str(machine.id),
                     host=machine.host,
                     port=machine.port,
                     username=machine.username,
                     ssh_key_path=machine.ssh_key_path,
+                    ssh_key_passphrase=passphrase,
                 )
                 logger.info("Auto-connected to %s", machine.name)
             except Exception as exc:

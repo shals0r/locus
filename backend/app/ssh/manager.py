@@ -35,6 +35,7 @@ class SSHManager:
         port: int,
         username: str,
         ssh_key_path: str,
+        ssh_key_passphrase: str | None = None,
     ) -> asyncssh.SSHClientConnection:
         """Establish an SSH connection and start heartbeat monitoring.
 
@@ -44,6 +45,7 @@ class SSHManager:
             port: SSH port number.
             username: SSH username.
             ssh_key_path: Path to the SSH private key.
+            ssh_key_passphrase: Optional passphrase for the SSH private key.
 
         Returns:
             The established SSH connection.
@@ -52,11 +54,16 @@ class SSHManager:
         if machine_id in self._connections:
             await self.disconnect(machine_id)
 
+        if ssh_key_passphrase:
+            client_keys = [asyncssh.read_private_key(ssh_key_path, passphrase=ssh_key_passphrase)]
+        else:
+            client_keys = [ssh_key_path]
+
         conn = await asyncssh.connect(
             host,
             port=port,
             username=username,
-            client_keys=[ssh_key_path],
+            client_keys=client_keys,
             known_hosts=None,
             keepalive_interval=15,
             keepalive_count_max=3,
@@ -68,12 +75,13 @@ class SSHManager:
             "port": port,
             "username": username,
             "ssh_key_path": ssh_key_path,
+            "ssh_key_passphrase": ssh_key_passphrase,
         }
         self._set_status(machine_id, "online")
 
         # Start heartbeat monitoring
         self._heartbeat_tasks[machine_id] = asyncio.create_task(
-            self._heartbeat_loop(machine_id, conn, host, port, username, ssh_key_path)
+            self._heartbeat_loop(machine_id, conn, host, port, username, ssh_key_path, ssh_key_passphrase)
         )
 
         logger.info("SSH connected to %s@%s:%d (machine=%s)", username, host, port, machine_id)
@@ -119,6 +127,7 @@ class SSHManager:
         port: int,
         username: str,
         ssh_key_path: str,
+        ssh_key_passphrase: str | None = None,
     ) -> None:
         """Periodically check connection health via echo command.
 
@@ -139,7 +148,7 @@ class SSHManager:
                     "Heartbeat failed for machine=%s: %s", machine_id, exc
                 )
                 self._set_status(machine_id, "reconnecting")
-                await self._reconnect(machine_id, host, port, username, ssh_key_path)
+                await self._reconnect(machine_id, host, port, username, ssh_key_path, ssh_key_passphrase)
                 return  # reconnect starts a new heartbeat loop
 
     async def _reconnect(
@@ -149,6 +158,7 @@ class SSHManager:
         port: int,
         username: str,
         ssh_key_path: str,
+        ssh_key_passphrase: str | None = None,
     ) -> None:
         """Attempt to reconnect with exponential backoff.
 

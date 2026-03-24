@@ -29,6 +29,7 @@ export function MachineForm({
   const [sshKeyPath, setSshKeyPath] = useState(
     initialData?.ssh_key_path ?? "",
   );
+  const [sshKeyPassphrase, setSshKeyPassphrase] = useState("");
   const [repoScanPaths, setRepoScanPaths] = useState(
     initialData?.repo_scan_paths?.join(", ") ?? "",
   );
@@ -45,7 +46,7 @@ export function MachineForm({
     try {
       const result = await apiPost<TestResult>(
         "/api/machines/test-connection",
-        { host, port, username, ssh_key_path: sshKeyPath },
+        { host, port, username, ssh_key_path: sshKeyPath, ssh_key_passphrase: sshKeyPassphrase || undefined },
       );
       setTestResult(result);
     } catch (err) {
@@ -71,6 +72,7 @@ export function MachineForm({
         port,
         username,
         ssh_key_path: sshKeyPath,
+        ssh_key_passphrase: sshKeyPassphrase || undefined,
         repo_scan_paths: repoScanPaths
           .split(",")
           .map((p) => p.trim())
@@ -147,6 +149,17 @@ export function MachineForm({
           onChange={(e) => setSshKeyPath(e.target.value)}
           placeholder="~/.ssh/id_ed25519"
           required
+          className="h-9 rounded border border-border bg-dominant px-3 text-sm text-primary-text placeholder:text-muted focus:border-accent focus:outline-none"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted">SSH Key Passphrase</label>
+        <input
+          type="password"
+          value={sshKeyPassphrase}
+          onChange={(e) => setSshKeyPassphrase(e.target.value)}
+          placeholder="Leave blank if key is not encrypted"
           className="h-9 rounded border border-border bg-dominant px-3 text-sm text-primary-text placeholder:text-muted focus:border-accent focus:outline-none"
         />
       </div>
