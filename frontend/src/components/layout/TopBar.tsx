@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Settings, LogOut, User, Wifi, Database, Bot } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
+import { useMachineStore } from "../../stores/machineStore";
+import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
+import { useStatus } from "../../hooks/useStatus";
 
 function StatusDot({ status }: { status: "connected" | "disconnected" | "connecting" }) {
   const colors: Record<string, string> = {
@@ -29,10 +32,42 @@ function StatusIndicator({
   );
 }
 
+/**
+ * Derive SSH indicator status from machine statuses.
+ * Green if any online, amber if any reconnecting, red if all offline.
+ */
+function useSshStatus(): "connected" | "disconnected" | "connecting" {
+  const machineStatuses = useMachineStore((s) => s.machineStatuses);
+  const values = Object.values(machineStatuses);
+  if (values.length === 0) return "disconnected";
+  if (values.some((s) => s === "online")) return "connected";
+  if (values.some((s) => s === "reconnecting")) return "connecting";
+  return "disconnected";
+}
+
+/**
+ * Derive Claude Code indicator status.
+ * Green if configured, amber if any session waiting for input, muted otherwise.
+ */
+function useClaudeIndicatorStatus(
+  serviceStatus: { claude_code: string },
+): "connected" | "disconnected" | "connecting" {
+  const waitingSessions = useClaudeSessionStore((s) => s.getWaitingSessions());
+  if (waitingSessions.length > 0) return "connecting"; // amber pulse for waiting
+  if (serviceStatus.claude_code === "configured") return "connected";
+  return "disconnected";
+}
+
 export function TopBar() {
   const clearToken = useAuthStore((s) => s.clearToken);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Connect to live status WebSocket
+  const { serviceStatus } = useStatus();
+
+  const sshStatus = useSshStatus();
+  const claudeStatus = useClaudeIndicatorStatus(serviceStatus);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -53,9 +88,9 @@ export function TopBar() {
 
       {/* Center: Status indicators */}
       <div className="flex items-center gap-4">
-        <StatusIndicator icon={Wifi} label="SSH" status="disconnected" />
+        <StatusIndicator icon={Wifi} label="SSH" status={sshStatus} />
         <StatusIndicator icon={Database} label="DB" status="connected" />
-        <StatusIndicator icon={Bot} label="Claude" status="disconnected" />
+        <StatusIndicator icon={Bot} label="Claude" status={claudeStatus} />
       </div>
 
       {/* Right: User menu */}
