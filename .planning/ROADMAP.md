@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 7 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Docker + backend skeleton + DB models + frontend skeleton
+- [x] 01-01-PLAN.md — Docker + backend skeleton + DB models + frontend skeleton
 - [ ] 01-02-PLAN.md — Auth backend (password, JWT, Fernet encryption)
 - [ ] 01-03-PLAN.md — SSH manager + tmux + WebSocket-SSH bridge
 - [ ] 01-04-PLAN.md — Frontend panel layout + stores + navigation

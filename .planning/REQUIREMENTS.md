@@ -73,8 +73,8 @@
 
 ### Deployment
 
-- [ ] **DEPL-01**: The entire stack (app, Postgres, integrations runner) starts with a single `docker compose up`
-- [ ] **DEPL-02**: Configuration is done via environment variables and a first-run setup flow
+- [x] **DEPL-01**: The entire stack (app, Postgres, integrations runner) starts with a single `docker compose up`
+- [x] **DEPL-02**: Configuration is done via environment variables and a first-run setup flow
 - [ ] **DEPL-03**: User can see connected service status indicators in the top bar
 
 ## v2 Requirements
@@ -161,8 +161,8 @@
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |
 | AUTH-04 | Phase 1 | Pending |
-| DEPL-01 | Phase 1 | Pending |
-| DEPL-02 | Phase 1 | Pending |
+| DEPL-01 | Phase 1 | Complete |
+| DEPL-02 | Phase 1 | Complete |
 | DEPL-03 | Phase 1 | Pending |
 
 **Coverage:**
