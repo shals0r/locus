@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can open multiple terminal tabs across different repos and machines, and see all active Claude Code sessions in one view
   4. User can attach to existing tmux sessions on remote machines and reconnect gracefully after SSH drops
   5. User can see machine online/offline status, connected service indicators, and collapse/expand/resize the three main panels
-**Plans**: 7 plans
+**Plans**: 9 plans
 
 Plans:
 - [x] 01-01-PLAN.md — Docker + backend skeleton + DB models + frontend skeleton
@@ -39,6 +39,8 @@ Plans:
 - [x] 01-05-PLAN.md — Machine CRUD API + session API + settings API
 - [x] 01-06-PLAN.md — Auth UI (login, setup wizard) + settings pages
 - [ ] 01-07-PLAN.md — Terminal rendering + Claude detection + status indicators
+- [ ] 01-08-PLAN.md — [GAP] Backend tmux detach-on-disconnect, reattach-on-reconnect
+- [ ] 01-09-PLAN.md — [GAP] Frontend terminal persistence across tab switches
 
 **UI hint**: yes
 
@@ -85,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Terminal Core | 0/7 | Planning complete | - |
+| 1. Infrastructure & Terminal Core | 0/9 | Gap closure planned | - |
 | 2. Repository Management & Work Feed | 0/? | Not started | - |
 | 3. Code Review & Diff | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
