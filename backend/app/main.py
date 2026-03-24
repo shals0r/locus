@@ -15,6 +15,7 @@ from app.database import engine
 from app.models import Base
 from app.ssh.manager import ssh_manager
 from app.ws.terminal import router as terminal_ws_router
+from app.ws.status import router as status_ws_router
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ app = FastAPI(
 )
 
 app.include_router(terminal_ws_router)
+app.include_router(status_ws_router)
 
 app.add_middleware(
     CORSMiddleware,
