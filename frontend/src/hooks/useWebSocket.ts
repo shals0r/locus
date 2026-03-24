@@ -18,6 +18,7 @@ interface UseWebSocketReturn {
   status: WsStatus;
   send: (data: string | ArrayBuffer | Uint8Array) => void;
   reconnect: () => void;
+  disconnect: () => void;
 }
 
 const INITIAL_DELAY = 1000;
@@ -41,6 +42,7 @@ export function useWebSocket(
   const delayRef = useRef(INITIAL_DELAY);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+  const intentionalCloseRef = useRef(false);
   const urlRef = useRef(url);
   const optsRef = useRef(options);
 
@@ -91,6 +93,13 @@ export function useWebSocket(
       if (unmountedRef.current) return;
       optsRef.current.onClose?.();
 
+      // Skip auto-reconnect for intentional disconnects (tab switch, unmount)
+      if (intentionalCloseRef.current) {
+        intentionalCloseRef.current = false;
+        setStatus("disconnected");
+        return;
+      }
+
       if (retriesRef.current >= MAX_RETRIES) {
         setStatus("failed");
         return;
@@ -125,6 +134,12 @@ export function useWebSocket(
     connect();
   }, [connect]);
 
+  const disconnect = useCallback(() => {
+    intentionalCloseRef.current = true;
+    cleanup();
+    setStatus("disconnected");
+  }, [cleanup]);
+
   useEffect(() => {
     unmountedRef.current = false;
     if (url) {
@@ -132,9 +147,10 @@ export function useWebSocket(
     }
     return () => {
       unmountedRef.current = true;
+      intentionalCloseRef.current = true;
       cleanup();
     };
   }, [url, connect, cleanup]);
 
-  return { ws: wsRef.current, status, send, reconnect };
+  return { ws: wsRef.current, status, send, reconnect, disconnect };
 }

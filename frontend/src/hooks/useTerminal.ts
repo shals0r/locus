@@ -34,6 +34,7 @@ const TOKYO_NIGHT_THEME = {
 interface UseTerminalReturn {
   status: WsStatus;
   reconnect: () => void;
+  disconnect: () => void;
 }
 
 /**
@@ -46,6 +47,7 @@ interface UseTerminalReturn {
 export function useTerminal(
   sessionId: string | null,
   containerRef: RefObject<HTMLDivElement | null>,
+  isVisible: boolean = true,
 ): UseTerminalReturn {
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -75,15 +77,18 @@ export function useTerminal(
     }
   }, []);
 
-  const { status, send, reconnect } = useWebSocket(wsUrl, {
+  const { status, send, reconnect, disconnect } = useWebSocket(wsUrl, {
     binaryType: "arraybuffer",
     onMessage: handleMessage,
   });
 
-  // Create and mount terminal
+  // Create terminal instance once on mount
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !sessionId) return;
+    if (!container) return;
+
+    // Don't create a new terminal if one already exists
+    if (termRef.current) return;
 
     const term = new Terminal({
       cursorBlink: true,
@@ -122,7 +127,27 @@ export function useTerminal(
       termRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, containerRef]);
+  }, [containerRef]);
+
+  // Refit terminal when it becomes visible (tab switch back)
+  useEffect(() => {
+    if (!isVisible) return;
+    const fitAddon = fitAddonRef.current;
+    if (!fitAddon) return;
+
+    // Use two frames: one for DOM layout, one for fit calculation
+    const frameId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          fitAddon.fit();
+        } catch {
+          // Terminal not ready
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [isVisible]);
 
   // Wire up terminal data -> WebSocket (send user input)
   useEffect(() => {
@@ -175,5 +200,5 @@ export function useTerminal(
     };
   }, [sessionId, containerRef]);
 
-  return { status, reconnect };
+  return { status, reconnect, disconnect };
 }
