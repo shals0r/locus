@@ -23,9 +23,31 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: create tables on startup, dispose engine on shutdown."""
+    from sqlalchemy import select
+    from app.database import async_session_factory
+    from app.models.machine import Machine
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
+
+    # Auto-reconnect SSH to all machines
+    async with async_session_factory() as db:
+        result = await db.execute(select(Machine))
+        machines = result.scalars().all()
+        for machine in machines:
+            try:
+                await ssh_manager.connect(
+                    machine_id=str(machine.id),
+                    host=machine.host,
+                    port=machine.port,
+                    username=machine.username,
+                    ssh_key_path=machine.ssh_key_path,
+                )
+                logger.info("Auto-connected to %s", machine.name)
+            except Exception as exc:
+                logger.warning("Auto-connect failed for %s: %s", machine.name, exc)
+
     yield
     await ssh_manager.shutdown()
     await engine.dispose()

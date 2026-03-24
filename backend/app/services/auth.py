@@ -31,6 +31,18 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 
+def verify_token(token: str) -> dict:
+    """Decode and validate a JWT token, returning the payload. Raises on invalid."""
+    try:
+        return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     """Decode and validate a JWT token, returning the payload."""
     try:

@@ -137,12 +137,12 @@ export function CredentialSettings() {
                 {testResults[cred.id] && (
                   <span
                     className={`text-xs ${
-                      testResults[cred.id].success
+                      testResults[cred.id]?.success
                         ? "text-success"
                         : "text-error"
                     }`}
                   >
-                    {testResults[cred.id].message}
+                    {testResults[cred.id]?.message}
                   </span>
                 )}
               </div>

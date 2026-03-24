@@ -146,12 +146,12 @@ export function ClaudeCodeSettings() {
                   {pushResult[machine.id] && (
                     <span
                       className={`text-xs ${
-                        pushResult[machine.id].success
+                        pushResult[machine.id]?.success
                           ? "text-success"
                           : "text-error"
                       }`}
                     >
-                      {pushResult[machine.id].message}
+                      {pushResult[machine.id]?.message}
                     </span>
                   )}
                 </div>

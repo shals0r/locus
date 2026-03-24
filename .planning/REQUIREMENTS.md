@@ -12,8 +12,8 @@
 - [x] **TERM-03**: User can open multiple terminal tabs, each bound to a specific repo on a specific machine
 - [x] **TERM-04**: User can attach to existing tmux sessions on remote machines and reconnect gracefully on SSH drop
 - [x] **TERM-05**: User can see machine connection status at a glance (online/offline indicators)
-- [ ] **TERM-06**: User can see all active Claude Code sessions across all repos and machines in one view
-- [ ] **TERM-07**: User receives a feed notification when a Claude Code session is waiting for input
+- [x] **TERM-06**: User can see all active Claude Code sessions across all repos and machines in one view
+- [x] **TERM-07**: User receives a feed notification when a Claude Code session is waiting for input
 
 ### Git & Repository Management
 
@@ -124,8 +124,8 @@
 | TERM-03 | Phase 1 | Complete |
 | TERM-04 | Phase 1 | Complete |
 | TERM-05 | Phase 1 | Complete |
-| TERM-06 | Phase 1 | Pending |
-| TERM-07 | Phase 1 | Pending |
+| TERM-06 | Phase 1 | Complete |
+| TERM-07 | Phase 1 | Complete |
 | GIT-01 | Phase 2 | Pending |
 | GIT-02 | Phase 2 | Pending |
 | GIT-03 | Phase 2 | Pending |

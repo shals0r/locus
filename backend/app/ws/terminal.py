@@ -70,6 +70,8 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     # Get SSH connection
     conn = await ssh_manager.get_connection(machine_id)
     if conn is None:
+        logger.warning("TERMINAL: No SSH connection for machine=%s, closing WS", machine_id)
+        await websocket.send_text('{"type":"error","message":"Machine not connected. Reconnecting..."}')
         await websocket.close(code=4003, reason="Machine not connected")
         return
 
@@ -83,7 +85,8 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     # Create terminal process -- always wrap in tmux per design guidance
     process = None
     try:
-        process = await create_terminal_in_tmux(
+        logger.warning("TERMINAL: Creating tmux process for session=%s machine=%s tmux=%s", session_id, machine_id, terminal_session.tmux_session_name)
+        process, tmux_name = await create_terminal_in_tmux(
             conn,
             session_name=terminal_session.tmux_session_name,
             working_dir=terminal_session.repo_path,
@@ -91,24 +94,45 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
             rows=rows,
         )
 
+        # Save the tmux session name back to DB if it was auto-generated
+        if not terminal_session.tmux_session_name:
+            try:
+                from sqlalchemy import update as sa_update
+                async with async_session_factory() as db:
+                    await db.execute(
+                        sa_update(TerminalSession)
+                        .where(TerminalSession.id == session_uuid)
+                        .values(tmux_session_name=tmux_name)
+                    )
+                    await db.commit()
+                logger.warning("TERMINAL: Saved tmux name=%s for session=%s", tmux_name, session_id)
+            except Exception as exc:
+                logger.warning("TERMINAL: Could not save tmux name: %s", exc)
+
+        logger.warning("TERMINAL: Process created, starting I/O loop for session=%s", session_id)
+
         # Run bidirectional I/O
         await asyncio.gather(
             _read_from_ssh(websocket, process),
             _read_from_ws(websocket, process),
         )
+        logger.warning("TERMINAL: I/O loop ended normally for session=%s", session_id)
     except WebSocketDisconnect:
-        logger.debug("WebSocket disconnected for session=%s", session_id)
+        logger.warning("TERMINAL: WebSocket disconnected for session=%s", session_id)
     except Exception:
-        logger.exception("Terminal error for session=%s", session_id)
+        logger.exception("TERMINAL: Error for session=%s", session_id)
     finally:
-        # Always clean up the SSH process (Pitfall 4: AsyncSSH Process Cleanup)
+        # Detach from tmux rather than killing — session persists for reattach
         if process is not None:
             try:
+                # Send tmux detach key sequence (Ctrl-B d) to cleanly detach
+                process.stdin.write(b"\x02d")
+                await asyncio.sleep(0.1)
                 process.close()
                 await process.wait_closed()
             except Exception:
                 pass
-        logger.debug("Terminal session cleaned up: session=%s", session_id)
+        logger.warning("TERMINAL: Detached session=%s", session_id)
 
 
 async def _read_from_ssh(

@@ -52,8 +52,10 @@ function useSshStatus(): "connected" | "disconnected" | "connecting" {
 function useClaudeIndicatorStatus(
   serviceStatus: { claude_code: string },
 ): "connected" | "disconnected" | "connecting" {
-  const waitingSessions = useClaudeSessionStore((s) => s.getWaitingSessions());
-  if (waitingSessions.length > 0) return "connecting"; // amber pulse for waiting
+  const hasWaiting = useClaudeSessionStore(
+    (s) => s.claudeSessions.some((cs) => cs.status === "waiting"),
+  );
+  if (hasWaiting) return "connecting"; // amber pulse for waiting
   if (serviceStatus.claude_code === "configured") return "connected";
   return "disconnected";
 }

@@ -6,6 +6,9 @@ import {
 } from "react-resizable-panels";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { usePanelStore } from "../../stores/panelStore";
+import { useMachineStore } from "../../stores/machineStore";
+import { apiGet } from "../../hooks/useApi";
+import type { Machine } from "../../types";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { CenterPanel } from "./CenterPanel";
@@ -15,7 +18,15 @@ export function AppShell() {
   const sidebarCollapsed = usePanelStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = usePanelStore((s) => s.setSidebarCollapsed);
   const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
+  const setMachines = useMachineStore((s) => s.setMachines);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
+
+  // Fetch machines on mount
+  useEffect(() => {
+    apiGet<Machine[]>("/api/machines")
+      .then(setMachines)
+      .catch(() => {});
+  }, [setMachines]);
 
   // Sync panel ref with store state
   useEffect(() => {

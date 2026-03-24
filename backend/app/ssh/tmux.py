@@ -46,7 +46,7 @@ async def create_terminal_in_tmux(
     working_dir: str | None = None,
     cols: int = 120,
     rows: int = 40,
-) -> asyncssh.SSHClientProcess:  # type: ignore[type-arg]
+) -> tuple[asyncssh.SSHClientProcess, str]:  # type: ignore[type-arg]
     """Create or attach to a tmux session with a PTY.
 
     If session_name is provided, attaches to that existing session.
@@ -60,18 +60,20 @@ async def create_terminal_in_tmux(
         rows: Terminal height in rows.
 
     Returns:
-        An SSH process with PTY attached to the tmux session.
+        Tuple of (SSH process with PTY, tmux session name).
     """
     if session_name:
-        command = f"tmux attach -t {session_name}"
+        name = session_name
+        command = f"tmux attach -t {name}"
     else:
         name = f"locus-{uuid4().hex[:8]}"
         cd_flag = f" -c {working_dir}" if working_dir else ""
         command = f"tmux new-session -s {name}{cd_flag}"
 
-    return await conn.create_process(
+    process = await conn.create_process(
         command,
         term_type="xterm-256color",
         term_size=(cols, rows),
         encoding=None,  # raw bytes mode
     )
+    return process, name

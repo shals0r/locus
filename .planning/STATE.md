@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-03-24T00:36:45.941Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 01-07-PLAN.md (checkpoint pending)
+last_updated: "2026-03-24T00:37:48.641Z"
 progress:
   total_phases: 4
   completed_phases: 0
@@ -52,6 +52,7 @@ Plan: 7 of 7
 | Phase 01 P04 | 3min | 2 tasks | 15 files |
 | Phase 01 P05 | 2min | 2 tasks | 6 files |
 | Phase 01 P06 | 4min | 2 tasks | 13 files |
+| Phase 01 P07 | 4min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Inline schemas in settings.py -- credential/claude-code schemas co-located with routes
 - [Phase 01]: Dynamic credential fields per service type for Phase 4 extensibility
 - [Phase 01]: TmuxPicker auto-creates session when none exist (per D-14)
+- [Phase 01]: Custom binary WebSocket handler instead of addon-attach for terminal I/O
+- [Phase 01]: Status WebSocket with 30s polling and immediate push via ssh_manager callbacks
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T00:36:45.936Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-03-24T00:37:48.636Z
+Stopped at: Completed 01-07-PLAN.md (checkpoint pending)
 Resume file: None
