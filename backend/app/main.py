@@ -11,6 +11,7 @@ from app.api.auth import router as auth_router
 from app.api.machines import router as machines_router
 from app.api.sessions import router as sessions_router
 from app.api.settings import router as settings_router
+from app.api.upload import router as upload_router
 from app.database import engine
 from app.models import Base
 from app.ssh.manager import ssh_manager
@@ -79,6 +80,7 @@ app.include_router(auth_router)
 app.include_router(machines_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
+app.include_router(upload_router)
 
 
 @app.get("/api/health")

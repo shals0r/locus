@@ -36,7 +36,7 @@ export function SessionTabBar() {
 
   return (
     <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
-      {sessions.map((session, idx) => {
+      {sessions.map((session) => {
         // Compute shell index for display (Shell 1, Shell 2, etc.)
         const shellIndex =
           session.session_type === "shell"

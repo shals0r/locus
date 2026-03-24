@@ -78,6 +78,7 @@ export function CenterPanel() {
                 >
                   <TerminalView
                     sessionId={s.id}
+                    machineId={s.machine_id}
                     isVisible={active}
                   />
                 </div>

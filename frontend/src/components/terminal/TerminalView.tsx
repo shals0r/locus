@@ -6,6 +6,7 @@ import "@xterm/xterm/css/xterm.css";
 
 interface TerminalViewProps {
   sessionId: string;
+  machineId: string;
   isVisible: boolean;
 }
 
@@ -18,7 +19,7 @@ interface TerminalViewProps {
  *
  * On tab switch we just fit + focus. No scrollback replay, no jitter-resize.
  */
-export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
+export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -76,14 +77,21 @@ export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
     termRef.current = term;
     fitRef.current = fitAddon;
 
-    const ws = new WebSocket(wsUrl);
+    // Fit BEFORE connecting so we know the real dimensions upfront
+    try { fitAddon.fit(); } catch {}
+
+    // Pass actual dimensions in URL so tmux is created at the right size
+    const cols = term.cols;
+    const rows = term.rows;
+    const ws = new WebSocket(wsUrl + `&cols=${cols}&rows=${rows}`);
     ws.binaryType = "arraybuffer";
     const encoder = new TextEncoder();
 
     ws.onopen = () => {
-      requestAnimationFrame(() => {
-        try { fitAddon.fit(); } catch {}
-      });
+      // Send dimensions again in case they changed between URL construction and connect
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
     };
 
     ws.onmessage = (e) => {
@@ -98,6 +106,94 @@ export function TerminalView({ sessionId, isVisible }: TerminalViewProps) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(encoder.encode(data));
       }
+    });
+
+    // Clipboard handling — single handler for copy, paste (text + images)
+    function pasteText(text: string) {
+      if (text && ws.readyState === WebSocket.OPEN) {
+        ws.send(encoder.encode("\x1b[200~" + text + "\x1b[201~"));
+      }
+    }
+
+    function pasteFromClipboard() {
+      navigator.clipboard.read().then(async (items) => {
+        for (const item of items) {
+          const imageType = item.types.find((t) => t.startsWith("image/"));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            term.write("\r\n\x1b[90m[Uploading image...]\x1b[0m");
+
+            const formData = new FormData();
+            formData.append("machine_id", machineId);
+            formData.append("file", blob, `paste-${Date.now()}.png`);
+
+            try {
+              const tkn = localStorage.getItem("locus_token");
+              const res = await fetch("/api/upload-image", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${tkn ?? ""}` },
+                body: formData,
+              });
+              if (res.ok) {
+                const { remote_path } = await res.json();
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(encoder.encode(remote_path));
+                }
+              } else {
+                const detail = await res.text().catch(() => "unknown error");
+                term.write(`\r\n\x1b[31m[Image upload failed: ${detail}]\x1b[0m\r\n`);
+              }
+            } catch (err) {
+              term.write("\r\n\x1b[31m[Image upload failed]\x1b[0m\r\n");
+            }
+            return;
+          }
+        }
+        // No image — paste text
+        const text = await navigator.clipboard.readText();
+        pasteText(text);
+      }).catch((err) => {
+        console.warn("[TERM] clipboard.read() failed:", err);
+        // Clipboard API read() denied — try text-only
+        navigator.clipboard.readText().then(pasteText).catch(() => {});
+      });
+    }
+
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+
+      // Ctrl+C: copy selection if any, else let SIGINT through
+      if (e.ctrlKey && e.key === "c" && !e.shiftKey) {
+        if (term.hasSelection()) {
+          navigator.clipboard.writeText(term.getSelection());
+          term.clearSelection();
+          return false;
+        }
+        return true; // no selection → normal SIGINT
+      }
+
+      // Ctrl+Shift+C: always copy
+      if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        if (term.hasSelection()) {
+          navigator.clipboard.writeText(term.getSelection());
+          term.clearSelection();
+        }
+        return false;
+      }
+
+      // Ctrl+V / Ctrl+Shift+V: paste (checks for images first)
+      if (e.ctrlKey && (e.key === "v" || e.key === "V")) {
+        pasteFromClipboard();
+        return false;
+      }
+
+      return true;
+    });
+
+    // Right-click → paste
+    container.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      pasteFromClipboard();
     });
 
     term.onResize(({ cols, rows }) => {

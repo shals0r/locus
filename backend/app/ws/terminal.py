@@ -121,7 +121,7 @@ class SessionProcess:
 # Global pool: one process per session, survives WS reconnects
 _pool: dict[str, SessionProcess] = {}
 # Max concurrent SSH processes — leave headroom for heartbeat + other channels
-_MAX_POOL = 6
+_MAX_POOL = 4
 
 
 async def _evict_pool() -> None:
