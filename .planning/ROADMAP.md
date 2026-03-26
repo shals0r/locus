@@ -84,7 +84,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — DB models (FeedItem, Task, IntegrationSource) + Pydantic schemas
 - [x] 02-02-PLAN.md — Service layers (git_service + GSD state, feed_service + AI classification, task_service, gsd_event_service)
-- [ ] 02-03-PLAN.md — Git API routes + GSD state endpoint + Feed API routes + transcript endpoint + Feed WebSocket
+- [x] 02-03-PLAN.md — Git API routes + GSD state endpoint + Feed API routes + transcript endpoint + Feed WebSocket
 - [ ] 02-04-PLAN.md — Task API routes + Command palette search endpoint
 - [ ] 02-05-PLAN.md — Integrations polling (APScheduler + 4 adapters + mention detection)
 - [ ] 02-06-PLAN.md — Git sidebar UI (repo list, GSD state badges, GSD actions, commit timeline, branch dropdown, git ops)
