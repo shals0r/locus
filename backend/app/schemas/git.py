@@ -51,3 +51,15 @@ class RepoDetail(BaseModel):
     repo_path: str
     name: str
     status: RepoStatus
+
+
+class GsdState(BaseModel):
+    """GSD framework state for a repo (GIT-05)."""
+
+    has_gsd: bool
+    current_phase: str | None = None
+    phase_status: str | None = None
+    pending_todos: int = 0
+    blockers: int = 0
+    total_phases: int = 0
+    completed_phases: int = 0

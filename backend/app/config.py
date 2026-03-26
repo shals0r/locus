@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     )
     in_docker: bool = False
 
+    # Webhook HMAC secret for feed ingest
+    webhook_secret: str = ""
+
     # LLM settings for AI-assisted tier classification
     llm_api_key: str = ""
     llm_api_url: str = "https://api.anthropic.com/v1/messages"
