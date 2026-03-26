@@ -7,6 +7,7 @@ const statusText: Record<MachineStatus, string> = {
   online: "Connected",
   offline: "Offline",
   reconnecting: "Reconnecting",
+  needs_setup: "Needs Setup",
 };
 
 export function Sidebar() {

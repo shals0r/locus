@@ -13,13 +13,20 @@ import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { CenterPanel } from "./CenterPanel";
 import { RightPanel } from "./RightPanel";
+import { CommandPalette } from "../palette/CommandPalette";
 
 export function AppShell() {
   const sidebarCollapsed = usePanelStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = usePanelStore((s) => s.setSidebarCollapsed);
+  const rightPanelCollapsed = usePanelStore((s) => s.rightPanelCollapsed);
+  const setRightPanelCollapsed = usePanelStore(
+    (s) => s.setRightPanelCollapsed,
+  );
   const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
+  const toggleRightPanel = usePanelStore((s) => s.toggleRightPanel);
   const setMachines = useMachineStore((s) => s.setMachines);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
+  const rightPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Fetch machines on mount
   useEffect(() => {
@@ -40,17 +47,45 @@ export function AppShell() {
     }
   }, [sidebarCollapsed]);
 
-  // Keyboard shortcut: Ctrl+B to toggle sidebar
+  // Sync right panel ref with store state
+  useEffect(() => {
+    const panel = rightPanelRef.current;
+    if (!panel) return;
+
+    if (rightPanelCollapsed) {
+      panel.collapse();
+    } else {
+      panel.expand();
+      panel.resize(25);
+    }
+  }, [rightPanelCollapsed]);
+
+  // Keyboard shortcuts: Ctrl+B (sidebar), Ctrl+J (right panel), Ctrl+` (terminal)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "b") {
-        e.preventDefault();
-        toggleSidebar();
+      if (!(e.ctrlKey || e.metaKey)) return;
+
+      switch (e.key) {
+        case "b":
+          e.preventDefault();
+          toggleSidebar();
+          break;
+        case "j":
+          e.preventDefault();
+          toggleRightPanel();
+          break;
+        case "`":
+          e.preventDefault();
+          // Focus terminal -- the center panel terminal will gain focus
+          document
+            .querySelector<HTMLElement>("[data-terminal-focus]")
+            ?.focus();
+          break;
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, toggleRightPanel]);
 
   // Handle panel collapse/expand events from drag
   const handleSidebarCollapse = useCallback(() => {
@@ -74,9 +109,19 @@ export function AppShell() {
     }
   }, [sidebarCollapsed]);
 
+  // Handle right panel collapse/expand events from drag
+  const handleRightPanelCollapse = useCallback(() => {
+    setRightPanelCollapsed(true);
+  }, [setRightPanelCollapsed]);
+
+  const handleRightPanelExpand = useCallback(() => {
+    setRightPanelCollapsed(false);
+  }, [setRightPanelCollapsed]);
+
   return (
     <div className="flex h-screen flex-col bg-dominant text-primary-text">
       <TopBar />
+      <CommandPalette />
       <PanelGroup direction="horizontal" className="flex-1">
         {/* Left sidebar */}
         <Panel
@@ -97,14 +142,22 @@ export function AppShell() {
         />
 
         {/* Center panel */}
-        <Panel defaultSize={80} minSize={30}>
+        <Panel defaultSize={55} minSize={30}>
           <CenterPanel />
         </Panel>
 
-        <PanelResizeHandle className="w-0" />
+        <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors cursor-col-resize" />
 
-        {/* Right panel (collapsed in Phase 1) */}
-        <Panel defaultSize={0} collapsible collapsedSize={0}>
+        {/* Right panel -- feed / tasks */}
+        <Panel
+          ref={rightPanelRef}
+          defaultSize={0}
+          minSize={15}
+          collapsible
+          collapsedSize={0}
+          onCollapse={handleRightPanelCollapse}
+          onExpand={handleRightPanelExpand}
+        >
           <RightPanel />
         </Panel>
       </PanelGroup>
