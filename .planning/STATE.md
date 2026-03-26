@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: In progress
-stopped_at: Completed 01.1-02-PLAN.md
-last_updated: "2026-03-26T12:45:11Z"
+stopped_at: Completed 01.1-03-PLAN.md (Phase 01.1 complete)
+last_updated: "2026-03-26T13:48:00Z"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -19,36 +19,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Open one tool and immediately know what needs attention, across every repo, machine, agent session, and work stream -- then act on it without switching context.
-**Current focus:** Phase 01.1 — local-machine-support
+**Current focus:** Phase 01.1 complete -- ready for Phase 2
 
 ## Current Position
 
-Phase: 01.1 (local-machine-support) — EXECUTING
-Plan: 2 of 3
-Status: In progress
-Last activity: 2026-03-26 - Completed 01.1-02-PLAN.md
+Phase: 01.1 (local-machine-support) — COMPLETE
+Plan: 3 of 3
+Status: Phase complete
+Last activity: 2026-03-26 - Completed 01.1-03-PLAN.md
 
-Progress: [█████████░] 90% (9/10 plans)
+Progress: [██████████] 100% (10/10 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
-- Average duration: ~3.6min
-- Total execution time: ~32 min
+- Total plans completed: 10
+- Average duration: ~4min
+- Total execution time: ~40 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | Phase 01 | 7 | ~21min | ~3min |
-| Phase 01.1 | 2 | 11min | 5.5min |
+| Phase 01.1 | 3 | 19min | ~6.3min |
 
 **Recent Trend:**
 
-- Last 5 plans: 4min, 4min, 6min, 5min
-- Trend: stable
+- Last 5 plans: 4min, 6min, 5min, 8min
+- Trend: stable (Phase 01.1 slightly longer due to checkpoint interaction)
 
 *Updated after each plan completion*
 | Phase 01 P01 | 3min | 2 tasks | 27 files |
@@ -60,6 +60,7 @@ Progress: [█████████░] 90% (9/10 plans)
 | Phase 01 P07 | 4min | 2 tasks | 14 files |
 | Phase 01.1 P01 | 6min | 2 tasks | 9 files |
 | Phase 01.1 P02 | 5min | 2 tasks | 6 files |
+| Phase 01.1 P03 | 8min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -88,7 +89,10 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Inline startup migration for UUID->VARCHAR schema evolution (no Alembic needed)
 - [Phase 01.1]: CRUD/connect/disconnect endpoints keep machine_id: UUID -- "local" correctly fails validation for remote-only operations
 - [Phase 01.1]: Subprocess Claude detection mirrors SSH version for consistent native-mode status parsing
-- [Phase 01.1]: conn=None sentinel from LocalMachineManager triggers subprocess code path in all handlers
+- [Phase 01.1]: conn=None sentinel from LocalMachineManager triggers subprocess code path in native mode only
+- [Phase 01.1]: is_usable property gates all host operations -- Docker mode without SSH returns "needs_setup" status
+- [Phase 01.1]: 409 Conflict for needs_setup operations (consistent with "not connected" pattern for remote machines)
+- [Phase 01.1]: CenterPanel shows setup instructions panel instead of SessionTabBar when machine needs_setup
 
 ### Pending Todos
 
@@ -97,6 +101,7 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 1.1 inserted after Phase 1: Local Machine Support (URGENT) -- Phase 1 built everything SSH-only; local dev (repos, terminals, Claude sessions on the host machine) has no support. "This Machine" must be first-class before Phase 2 builds the git sidebar on top of it.
+- Phase 5 added: Host Agent -- lightweight host-side process bridging Docker-to-host for "This Machine" terminals, session persistence, and Claude detection without SSH. Discovered during Phase 1.1 verification: Docker containers can't access the host without SSH or an agent, and the subprocess fallback incorrectly gives a container shell. Agent handles Windows (no tmux) and Unix (real tmux) hosts.
 
 ### Blockers/Concerns
 
@@ -104,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T12:45:11Z
-Stopped at: Completed 01.1-02-PLAN.md
+Last session: 2026-03-26T13:48:00Z
+Stopped at: Completed 01.1-03-PLAN.md (Phase 01.1 complete)
 Resume file: None
