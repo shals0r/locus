@@ -9,10 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
+from app.local.tmux import kill_tmux_session_local
 from app.models.machine import Machine
 from app.models.session import TerminalSession
 from app.schemas.session import SessionCreate, SessionResponse
 from app.services.auth import get_current_user
+from app.services.machine_registry import is_local_machine, get_connection_for_machine
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import kill_tmux_session
 from app.ws.terminal import close_session_process
@@ -185,7 +188,7 @@ async def list_sessions(
     """List all active terminal sessions, optionally filtered by machine."""
     query = select(TerminalSession).where(TerminalSession.is_active.is_(True))
     if machine_id is not None:
-        query = query.where(TerminalSession.machine_id == UUID(machine_id))
+        query = query.where(TerminalSession.machine_id == machine_id)
     result = await db.execute(query)
     sessions = result.scalars().all()
     return [_session_to_response(s) for s in sessions]
@@ -202,13 +205,14 @@ async def create_session(
     The returned session ID is used by the frontend to open a WebSocket
     connection at /ws/terminal/{session_id}.
     """
-    # Verify machine exists
-    machine = await db.get(Machine, UUID(body.machine_id))
-    if machine is None:
-        raise HTTPException(status_code=404, detail="Machine not found")
+    # Verify machine exists (skip DB lookup for local machine)
+    if not is_local_machine(body.machine_id):
+        machine = await db.get(Machine, UUID(body.machine_id))
+        if machine is None:
+            raise HTTPException(status_code=404, detail="Machine not found")
 
     session = TerminalSession(
-        machine_id=UUID(body.machine_id),
+        machine_id=body.machine_id,
         session_type=body.session_type,
         tmux_session_name=body.tmux_session_name,
         repo_path=body.repo_path,
@@ -264,14 +268,12 @@ async def delete_session(
     tmux_name = session.tmux_session_name
     machine_id = str(session.machine_id)
 
+    # Get connection via registry (works for both local and remote)
+    conn = await get_connection_for_machine(machine_id)
+
     # Show death animation in the terminal before killing
-    conn = await ssh_manager.get_connection(machine_id)
     if conn is not None and tmux_name:
         try:
-            # Grab pane dimensions + TTY, then run the full animated
-            # death script inside bash with stdout piped to the pane.
-            # The single-quoted heredoc delimiter ('LOCUS_DEATH')
-            # prevents the outer shell from expanding $variables.
             cmd = (
                 f"COLS=$(tmux display-message -p -t '{tmux_name}' '#{{pane_width}}')\n"
                 f"ROWS=$(tmux display-message -p -t '{tmux_name}' '#{{pane_height}}')\n"
@@ -285,11 +287,18 @@ async def delete_session(
         except Exception:
             logger.debug("Could not display death animation for session=%s", session_id)
 
-    # Close the in-memory SSH process
+    # Close the in-memory process
     await close_session_process(str(session_id))
 
-    # Kill the tmux session on remote
-    if conn is not None and tmux_name:
+    # Kill the tmux session
+    if is_local_machine(machine_id) and conn is None and tmux_name:
+        # Native mode: use subprocess-based kill
+        killed = await kill_tmux_session_local(tmux_name)
+        if killed:
+            logger.info("SESSION: Killed local tmux=%s", tmux_name)
+        else:
+            logger.warning("SESSION: Local tmux=%s not found", tmux_name)
+    elif conn is not None and tmux_name:
         killed = await kill_tmux_session(conn, tmux_name)
         if killed:
             logger.info("SESSION: Killed tmux=%s on machine=%s", tmux_name, machine_id)

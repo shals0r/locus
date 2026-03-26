@@ -8,7 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.local.manager import LOCAL_MACHINE_ID, LOCAL_MACHINE_NAME, local_machine_manager
+from app.local.tmux import list_tmux_sessions_local, create_local_terminal_in_tmux
 from app.models.machine import Machine
 from app.schemas.machine import (
     MachineCreate,
@@ -22,6 +25,7 @@ from app.schemas.machine import (
 )
 from app.services.auth import get_current_user
 from app.services.crypto import decrypt_value, encrypt_value
+from app.services.machine_registry import is_local_machine, get_connection_for_machine
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import create_terminal_in_tmux, list_tmux_sessions
 
@@ -51,15 +55,32 @@ def _machine_to_response(machine: Machine) -> MachineResponse:
     )
 
 
+def _local_machine_response() -> MachineResponse:
+    """Build a synthetic MachineResponse for the local machine."""
+    return MachineResponse(
+        id=LOCAL_MACHINE_ID,
+        name=LOCAL_MACHINE_NAME,
+        host="localhost",
+        port=0,
+        username="",
+        ssh_key_path="",
+        repo_scan_paths=settings.local_repo_scan_paths,
+        status="online",
+    )
+
+
 @router.get("", response_model=list[MachineResponse])
 async def list_machines(
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[MachineResponse]:
-    """List all configured machines with their current SSH status."""
+    """List all configured machines with their current SSH status.
+
+    The local machine ("This Machine") is always the first entry.
+    """
     result = await db.execute(select(Machine))
     machines = result.scalars().all()
-    return [_machine_to_response(m) for m in machines]
+    return [_local_machine_response()] + [_machine_to_response(m) for m in machines]
 
 
 @router.post("", response_model=MachineResponse, status_code=status.HTTP_201_CREATED)
@@ -99,12 +120,15 @@ async def create_machine(
 
 @router.get("/{machine_id}", response_model=MachineResponse)
 async def get_machine(
-    machine_id: UUID,
+    machine_id: str,
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MachineResponse:
     """Get a single machine by ID with its current SSH status."""
-    machine = await db.get(Machine, machine_id)
+    if is_local_machine(machine_id):
+        return _local_machine_response()
+
+    machine = await db.get(Machine, UUID(machine_id))
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
     return _machine_to_response(machine)
@@ -253,16 +277,36 @@ async def disconnect_machine(
 
 @router.get("/{machine_id}/repos", response_model=list[str])
 async def scan_repos(
-    machine_id: UUID,
+    machine_id: str,
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[str]:
     """Scan configured paths on a machine for git repositories.
 
-    Uses `find` on the remote machine to discover .git directories
+    Uses `find` on the machine to discover .git directories
     within repo_scan_paths, up to 2 levels deep.
     """
-    machine = await db.get(Machine, machine_id)
+    if is_local_machine(machine_id):
+        scan_paths = settings.local_repo_scan_paths
+        if not scan_paths:
+            return []
+        repos: list[str] = []
+        for scan_path in scan_paths:
+            try:
+                output = await local_machine_manager.run_command(
+                    f"find {scan_path} -maxdepth 2 -name .git -type d 2>/dev/null"
+                )
+                for line in output.strip().split("\n"):
+                    if line:
+                        repo_path = line.rstrip("/")
+                        if repo_path.endswith("/.git"):
+                            repo_path = repo_path[:-5]
+                        repos.append(repo_path)
+            except Exception as exc:
+                logger.warning("Local repo scan failed for path %s: %s", scan_path, exc)
+        return repos
+
+    machine = await db.get(Machine, UUID(machine_id))
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
 
@@ -276,7 +320,7 @@ async def scan_repos(
     if not machine.repo_scan_paths:
         return []
 
-    repos: list[str] = []
+    repos = []
     for scan_path in machine.repo_scan_paths:
         try:
             result = await conn.run(
@@ -286,7 +330,6 @@ async def scan_repos(
             if result.stdout:
                 for line in result.stdout.strip().split("\n"):
                     if line:
-                        # Remove trailing /.git to get repo path
                         repo_path = line.rstrip("/")
                         if repo_path.endswith("/.git"):
                             repo_path = repo_path[:-5]
@@ -299,12 +342,30 @@ async def scan_repos(
 
 @router.get("/{machine_id}/tmux-sessions", response_model=TmuxSessionsResponse)
 async def get_tmux_sessions(
-    machine_id: UUID,
+    machine_id: str,
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TmuxSessionsResponse:
-    """List tmux sessions on a connected machine."""
-    machine = await db.get(Machine, machine_id)
+    """List tmux sessions on a machine (local or remote)."""
+    if is_local_machine(machine_id):
+        conn = await local_machine_manager.get_connection()
+        if conn is not None:
+            # Docker mode: use SSH-based listing
+            raw_sessions = await list_tmux_sessions(conn)
+        else:
+            # Native mode: use subprocess-based listing
+            raw_sessions = await list_tmux_sessions_local()
+        sessions = [
+            TmuxSessionItem(
+                name=str(s["name"]),
+                attached=bool(s["attached"]),
+                last_activity=str(s["last_activity"]),
+            )
+            for s in raw_sessions
+        ]
+        return TmuxSessionsResponse(sessions=sessions)
+
+    machine = await db.get(Machine, UUID(machine_id))
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
 
@@ -329,12 +390,23 @@ async def get_tmux_sessions(
 
 @router.post("/{machine_id}/tmux-sessions", response_model=TmuxCreateResponse)
 async def create_tmux_session(
-    machine_id: UUID,
+    machine_id: str,
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TmuxCreateResponse:
-    """Create a new tmux session on a connected machine."""
-    machine = await db.get(Machine, machine_id)
+    """Create a new tmux session on a machine (local or remote)."""
+    if is_local_machine(machine_id):
+        conn = await local_machine_manager.get_connection()
+        if conn is not None:
+            # Docker mode: use SSH-based creation
+            process, session_name = await create_terminal_in_tmux(conn)
+        else:
+            # Native mode: use subprocess-based creation
+            process, session_name = await create_local_terminal_in_tmux()
+        process.close()
+        return TmuxCreateResponse(session_name=session_name)
+
+    machine = await db.get(Machine, UUID(machine_id))
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
 
@@ -346,7 +418,5 @@ async def create_tmux_session(
         )
 
     process, session_name = await create_terminal_in_tmux(conn)
-    # Close the process — we only need the session created, not attached here.
-    # The terminal WebSocket handler will attach when the user opens the session.
     process.close()
     return TmuxCreateResponse(session_name=session_name)

@@ -57,6 +57,10 @@ async def lifespan(app: FastAPI):
 
     # Initialize local machine connection
     await local_machine_manager.initialize()
+    if local_machine_manager.in_docker:
+        logger.info("Local machine: initialized (Docker mode: SSH to host)")
+    else:
+        logger.info("Local machine: initialized (native mode: subprocess)")
 
     # Auto-reconnect SSH to all machines
     async with async_session_factory() as db:
