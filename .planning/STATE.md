@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: In progress
-stopped_at: Completed 01.1-01-PLAN.md
-last_updated: "2026-03-26T12:34:58Z"
+stopped_at: Completed 01.1-02-PLAN.md
+last_updated: "2026-03-26T12:45:11Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -24,30 +24,30 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 01.1 (local-machine-support) — EXECUTING
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In progress
-Last activity: 2026-03-26 - Completed 01.1-01-PLAN.md
+Last activity: 2026-03-26 - Completed 01.1-02-PLAN.md
 
-Progress: [████████░░] 80% (8/10 plans)
+Progress: [█████████░] 90% (9/10 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
-- Average duration: ~3.4min
-- Total execution time: ~27 min
+- Total plans completed: 9
+- Average duration: ~3.6min
+- Total execution time: ~32 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | Phase 01 | 7 | ~21min | ~3min |
-| Phase 01.1 | 1 | 6min | 6min |
+| Phase 01.1 | 2 | 11min | 5.5min |
 
 **Recent Trend:**
 
-- Last 5 plans: 2min, 4min, 4min, 6min
+- Last 5 plans: 4min, 4min, 6min, 5min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -59,6 +59,7 @@ Progress: [████████░░] 80% (8/10 plans)
 | Phase 01 P06 | 4min | 2 tasks | 13 files |
 | Phase 01 P07 | 4min | 2 tasks | 14 files |
 | Phase 01.1 P01 | 6min | 2 tasks | 9 files |
+| Phase 01.1 P02 | 5min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 01.1]: Transport abstraction: LocalMachineManager mirrors SSHManager interface (Docker=SSH, native=subprocess)
 - [Phase 01.1]: Machine registry pattern: all machine lookups route through services/machine_registry.py
 - [Phase 01.1]: Inline startup migration for UUID->VARCHAR schema evolution (no Alembic needed)
+- [Phase 01.1]: CRUD/connect/disconnect endpoints keep machine_id: UUID -- "local" correctly fails validation for remote-only operations
+- [Phase 01.1]: Subprocess Claude detection mirrors SSH version for consistent native-mode status parsing
+- [Phase 01.1]: conn=None sentinel from LocalMachineManager triggers subprocess code path in all handlers
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T12:34:58Z
-Stopped at: Completed 01.1-01-PLAN.md
+Last session: 2026-03-26T12:45:11Z
+Stopped at: Completed 01.1-02-PLAN.md
 Resume file: None
