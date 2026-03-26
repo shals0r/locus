@@ -12,8 +12,10 @@ from app.api.feed import router as feed_router
 from app.api.git import router as git_router
 from app.api.gsd_events import router as gsd_events_router
 from app.api.machines import router as machines_router
+from app.api.search import router as search_router
 from app.api.sessions import router as sessions_router
 from app.api.settings import router as settings_router
+from app.api.tasks import router as tasks_router
 from app.api.upload import router as upload_router
 from app.database import engine
 from app.models import Base
@@ -116,8 +118,10 @@ app.include_router(feed_router)
 app.include_router(git_router)
 app.include_router(gsd_events_router)
 app.include_router(machines_router)
+app.include_router(search_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
+app.include_router(tasks_router)
 app.include_router(upload_router)
 
 
