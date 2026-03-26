@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 interface PanelState {
   sidebarCollapsed: boolean;
-  rightPanelCollapsed: boolean; // always true in Phase 1
+  rightPanelCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setRightPanelCollapsed: (collapsed: boolean) => void;
@@ -10,7 +10,7 @@ interface PanelState {
 
 export const usePanelStore = create<PanelState>((set) => ({
   sidebarCollapsed: false,
-  rightPanelCollapsed: true, // D-06: collapsed by default in Phase 1
+  rightPanelCollapsed: false, // Phase 2: right panel starts expanded
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setRightPanelCollapsed: (collapsed) =>
