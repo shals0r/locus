@@ -78,10 +78,10 @@ User can see git state for every repo, perform git operations from the sidebar, 
 - Collapsible so it doesn't eat screen space when deep in code
 - "Copy context" button for quick paste into Claude Code, ChatGPT, etc.
 
-### Commit-Closes-Task Automation
-- When a commit message references the task ID or the branch was created from the task, the task auto-moves to Done
+### Completing Tasks
+- Mark done via "Complete" button on the context strip, or drag the task card to Done on the board
+- No auto-close magic — user explicitly marks tasks done
 - Done column shows completed tasks with checkmark and completion timestamp
-- Tasks in Done fade after 24h (user-configurable)
 
 ### Ingest & Sources
 - Dual ingest: webhook endpoint for real-time push + built-in polling adapters for sources that don't support webhooks
@@ -111,7 +111,6 @@ User can see git state for every repo, perform git operations from the sidebar, 
 - Commit timeline pagination/lazy loading
 - Diff viewer implementation details (basic for Phase 2, full in Phase 3)
 - Done card fade timing default
-- Task ID format and referencing convention
 - LLM analysis prompt design for Deep Promote
 
 </decisions>

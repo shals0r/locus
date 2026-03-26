@@ -77,7 +77,7 @@ Plans:
   4. User sees a unified feed of work items categorized into urgency tiers (Now/Respond/Review/Prep/Follow up) with source links, and can mark items read, dismiss, snooze, or promote them to tasks
   5. User can promote feed items to tasks via quick promote (one-click) or deep promote (LLM-assisted triage modal), and manage tasks on a Queue/Active/Done board
   6. User can start a task by selecting a machine, repo, and branch, which opens a working session with a pinned context strip showing task brief, source links, and a copy-to-clipboard button
-  7. Tasks auto-close when a commit references the task or was made on the task's branch
+  7. User can complete tasks via the context strip or by dragging to Done on the board
   8. User can open a command palette to fuzzy-search repos, machines, feed items, tasks, and actions, with VS Code-inspired keyboard shortcuts
 **Plans**: TBD
 **UI hint**: yes
