@@ -13,7 +13,7 @@ Locus delivers an engineering control plane in four phases: first the Docker sta
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Infrastructure & Terminal Core** - Docker stack, auth, SSH terminals, machine management, and three-panel layout shell
-- [ ] **Phase 1.1: Local Machine Support** (INSERTED) - Local terminals, repos, and Claude sessions without SSH — "This Machine" as first-class citizen
+- [x] **Phase 1.1: Local Machine Support** (INSERTED) - Local terminals, repos, and Claude sessions without SSH — "This Machine" as first-class citizen
 - [ ] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar with GSD state, unified work feed with ingest API, command palette
 - [ ] **Phase 3: Code Review & Diff** - Local and MR diff viewing, AI-assisted review with comment promotion
 - [ ] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
@@ -60,9 +60,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01.1-01-PLAN.md — Local machine module, machine registry, DB migration, Docker config
-- [ ] 01.1-02-PLAN.md — Wire backend API routes and WebSocket handlers for local machine
-- [ ] 01.1-03-PLAN.md — Frontend local machine display and visual verification
+- [x] 01.1-01-PLAN.md — Local machine module, machine registry, DB migration, Docker config
+- [x] 01.1-02-PLAN.md — Wire backend API routes and WebSocket handlers for local machine
+- [x] 01.1-03-PLAN.md — Frontend local machine display and visual verification
 
 **UI hint**: yes
 
@@ -127,7 +127,7 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
-| 1.1 Local Machine Support (INSERTED) | 0/3 | Planned | - |
+| 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
 | 2. Repository Management & Work Feed | 0/? | Not started | - |
 | 3. Code Review & Diff | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
