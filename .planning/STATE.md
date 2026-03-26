@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-stopped_at: Completed 01-07-PLAN.md (checkpoint pending)
-last_updated: "2026-03-24T00:37:48.641Z"
+status: In progress
+stopped_at: Completed 01.1-01-PLAN.md
+last_updated: "2026-03-26T12:34:58Z"
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 7
-  completed_plans: 6
+  total_phases: 5
+  completed_phases: 1
+  total_plans: 10
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,31 +19,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Open one tool and immediately know what needs attention, across every repo, machine, agent session, and work stream -- then act on it without switching context.
-**Current focus:** Phase 01 — infrastructure-terminal-core
+**Current focus:** Phase 01.1 — local-machine-support
 
 ## Current Position
 
-Phase: 01 (infrastructure-terminal-core) — EXECUTING
-Plan: 7 of 7
+Phase: 01.1 (local-machine-support) — EXECUTING
+Plan: 1 of 3
+Status: In progress
+Last activity: 2026-03-26 - Completed 01.1-01-PLAN.md
+
+Progress: [████████░░] 80% (8/10 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 8
+- Average duration: ~3.4min
+- Total execution time: ~27 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| Phase 01 | 7 | ~21min | ~3min |
+| Phase 01.1 | 1 | 6min | 6min |
 
 **Recent Trend:**
 
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 2min, 4min, 4min, 6min
+- Trend: stable
 
 *Updated after each plan completion*
 | Phase 01 P01 | 3min | 2 tasks | 27 files |
@@ -53,6 +58,7 @@ Plan: 7 of 7
 | Phase 01 P05 | 2min | 2 tasks | 6 files |
 | Phase 01 P06 | 4min | 2 tasks | 13 files |
 | Phase 01 P07 | 4min | 2 tasks | 14 files |
+| Phase 01.1 P01 | 6min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -75,10 +81,18 @@ Recent decisions affecting current work:
 - [Phase 01]: TmuxPicker auto-creates session when none exist (per D-14)
 - [Phase 01]: Custom binary WebSocket handler instead of addon-attach for terminal I/O
 - [Phase 01]: Status WebSocket with 30s polling and immediate push via ssh_manager callbacks
+- [Phase 01.1]: AliasChoices + raw string property for local_repo_scan_paths (pydantic-settings v2 JSON-parses list fields before validators)
+- [Phase 01.1]: Transport abstraction: LocalMachineManager mirrors SSHManager interface (Docker=SSH, native=subprocess)
+- [Phase 01.1]: Machine registry pattern: all machine lookups route through services/machine_registry.py
+- [Phase 01.1]: Inline startup migration for UUID->VARCHAR schema evolution (no Alembic needed)
 
 ### Pending Todos
 
 None yet.
+
+### Roadmap Evolution
+
+- Phase 1.1 inserted after Phase 1: Local Machine Support (URGENT) -- Phase 1 built everything SSH-only; local dev (repos, terminals, Claude sessions on the host machine) has no support. "This Machine" must be first-class before Phase 2 builds the git sidebar on top of it.
 
 ### Blockers/Concerns
 
@@ -86,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T00:37:48.636Z
-Stopped at: Completed 01-07-PLAN.md (checkpoint pending)
+Last session: 2026-03-26T12:34:58Z
+Stopped at: Completed 01.1-01-PLAN.md
 Resume file: None
