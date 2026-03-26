@@ -14,14 +14,14 @@ import { Sidebar } from "./Sidebar";
 import { CenterPanel } from "./CenterPanel";
 import { RightPanel } from "./RightPanel";
 
+const RIGHT_PANEL_DEFAULT_SIZE = 25;
+
 export function AppShell() {
   const sidebarCollapsed = usePanelStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = usePanelStore((s) => s.setSidebarCollapsed);
-  const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
   const rightPanelCollapsed = usePanelStore((s) => s.rightPanelCollapsed);
-  const setRightPanelCollapsed = usePanelStore(
-    (s) => s.setRightPanelCollapsed,
-  );
+  const setRightPanelCollapsed = usePanelStore((s) => s.setRightPanelCollapsed);
+  const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
   const setMachines = useMachineStore((s) => s.setMachines);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
@@ -127,16 +127,16 @@ export function AppShell() {
         />
 
         {/* Center panel */}
-        <Panel defaultSize={58} minSize={30}>
+        <Panel defaultSize={80 - RIGHT_PANEL_DEFAULT_SIZE} minSize={30}>
           <CenterPanel />
         </Panel>
 
         <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors cursor-col-resize" />
 
-        {/* Right panel (work feed) -- activated in Phase 2 */}
+        {/* Right panel (feed/board) */}
         <Panel
           ref={rightPanelRef}
-          defaultSize={22}
+          defaultSize={RIGHT_PANEL_DEFAULT_SIZE}
           minSize={15}
           collapsible
           collapsedSize={0}

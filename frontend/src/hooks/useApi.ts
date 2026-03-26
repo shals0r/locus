@@ -26,9 +26,15 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export async function apiPatch(path: string): Promise<void> {
-  const res = await apiFetch(path, { method: "PATCH" });
+export async function apiPatch<T = void>(path: string, body?: unknown): Promise<T> {
+  const options: RequestInit = { method: "PATCH" };
+  if (body !== undefined) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+  const res = await apiFetch(path, options);
   if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
 }
 
 export async function apiDelete(path: string): Promise<void> {

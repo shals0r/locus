@@ -102,6 +102,7 @@ export interface GsdState {
 }
 
 // Phase 2: Work Feed types
+export type FeedTier = "now" | "respond" | "review" | "prep" | "follow_up";
 
 export interface FeedItem {
   id: string;
@@ -110,11 +111,12 @@ export interface FeedItem {
   title: string;
   snippet: string | null;
   url: string | null;
-  tier: string;
+  tier: FeedTier;
   is_read: boolean;
   is_dismissed: boolean;
   source_icon: string | null;
   snoozed_until: string | null;
+  raw_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -124,7 +126,7 @@ export interface Task {
   feed_item_id: string | null;
   title: string;
   context: string | null;
-  tier: string;
+  tier: FeedTier;
   status: string;
   machine_id: string | null;
   repo_path: string | null;
