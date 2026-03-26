@@ -89,7 +89,7 @@ Plans:
 - [x] 02-05-PLAN.md — Integrations polling (APScheduler + 4 adapters + mention detection)
 - [x] 02-06-PLAN.md — Git sidebar UI (repo list, GSD state badges, GSD actions, commit timeline, branch dropdown, git ops)
 - [x] 02-07-PLAN.md — Feed panel UI (tier sections, feed cards, triage actions, WebSocket)
-- [ ] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
+- [x] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
 - [ ] 02-09-PLAN.md — Diff viewer integration (center panel)
 - [ ] 02-10-PLAN.md — Command palette (cmdk)
 - [ ] 02-11-PLAN.md — Visual and functional verification checkpoint
