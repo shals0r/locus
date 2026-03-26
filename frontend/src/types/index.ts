@@ -50,3 +50,96 @@ export interface ClaudeSession {
   status: ClaudeStatus;
   last_activity: number;
 }
+
+// Phase 2: Repository & Git types
+
+export interface RepoStatus {
+  branch: string;
+  is_dirty: boolean;
+  changed_count: number;
+  ahead: number;
+  behind: number;
+  last_activity: string | null;
+}
+
+export interface RepoDetail {
+  machine_id: string;
+  repo_path: string;
+  name: string;
+  status: RepoStatus;
+}
+
+export interface CommitEntry {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export interface ChangedFile {
+  status: string;
+  path: string;
+}
+
+export interface BranchInfo {
+  name: string;
+  is_current: boolean;
+}
+
+export interface GitOpResult {
+  success: boolean;
+  message: string;
+}
+
+export interface GsdState {
+  has_gsd: boolean;
+  current_phase: string | null;
+  phase_status: string | null;
+  pending_todos: number;
+  blockers: number;
+  total_phases: number;
+  completed_phases: number;
+}
+
+// Phase 2: Work Feed types
+
+export interface FeedItem {
+  id: string;
+  source_type: string;
+  external_id: string;
+  title: string;
+  snippet: string | null;
+  url: string | null;
+  tier: string;
+  is_read: boolean;
+  is_dismissed: boolean;
+  source_icon: string | null;
+  snoozed_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Task {
+  id: string;
+  feed_item_id: string | null;
+  title: string;
+  context: string | null;
+  tier: string;
+  status: string;
+  machine_id: string | null;
+  repo_path: string | null;
+  branch: string | null;
+  source_links: Record<string, string> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface SearchResult {
+  id: string;
+  type: string;
+  title: string;
+  subtitle: string | null;
+  icon: string | null;
+  action_data: Record<string, unknown> | null;
+}

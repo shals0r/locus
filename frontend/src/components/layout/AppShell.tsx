@@ -18,8 +18,13 @@ export function AppShell() {
   const sidebarCollapsed = usePanelStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = usePanelStore((s) => s.setSidebarCollapsed);
   const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
+  const rightPanelCollapsed = usePanelStore((s) => s.rightPanelCollapsed);
+  const setRightPanelCollapsed = usePanelStore(
+    (s) => s.setRightPanelCollapsed,
+  );
   const setMachines = useMachineStore((s) => s.setMachines);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
+  const rightPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Fetch machines on mount
   useEffect(() => {
@@ -28,7 +33,7 @@ export function AppShell() {
       .catch(() => {});
   }, [setMachines]);
 
-  // Sync panel ref with store state
+  // Sync sidebar panel ref with store state
   useEffect(() => {
     const panel = sidebarRef.current;
     if (!panel) return;
@@ -40,6 +45,18 @@ export function AppShell() {
     }
   }, [sidebarCollapsed]);
 
+  // Sync right panel ref with store state
+  useEffect(() => {
+    const panel = rightPanelRef.current;
+    if (!panel) return;
+
+    if (rightPanelCollapsed) {
+      panel.collapse();
+    } else {
+      panel.expand();
+    }
+  }, [rightPanelCollapsed]);
+
   // Keyboard shortcut: Ctrl+B to toggle sidebar
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -47,10 +64,15 @@ export function AppShell() {
         e.preventDefault();
         toggleSidebar();
       }
+      // Ctrl+J to toggle right panel
+      if ((e.ctrlKey || e.metaKey) && e.key === "j") {
+        e.preventDefault();
+        setRightPanelCollapsed(!rightPanelCollapsed);
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, rightPanelCollapsed, setRightPanelCollapsed]);
 
   // Handle panel collapse/expand events from drag
   const handleSidebarCollapse = useCallback(() => {
@@ -60,6 +82,14 @@ export function AppShell() {
   const handleSidebarExpand = useCallback(() => {
     setSidebarCollapsed(false);
   }, [setSidebarCollapsed]);
+
+  const handleRightPanelCollapse = useCallback(() => {
+    setRightPanelCollapsed(true);
+  }, [setRightPanelCollapsed]);
+
+  const handleRightPanelExpand = useCallback(() => {
+    setRightPanelCollapsed(false);
+  }, [setRightPanelCollapsed]);
 
   // Double-click resize handle to reset sidebar to default width
   const handleDoubleClickSidebar = useCallback(() => {
@@ -97,14 +127,22 @@ export function AppShell() {
         />
 
         {/* Center panel */}
-        <Panel defaultSize={80} minSize={30}>
+        <Panel defaultSize={58} minSize={30}>
           <CenterPanel />
         </Panel>
 
-        <PanelResizeHandle className="w-0" />
+        <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors cursor-col-resize" />
 
-        {/* Right panel (collapsed in Phase 1) */}
-        <Panel defaultSize={0} collapsible collapsedSize={0}>
+        {/* Right panel (work feed) -- activated in Phase 2 */}
+        <Panel
+          ref={rightPanelRef}
+          defaultSize={22}
+          minSize={15}
+          collapsible
+          collapsedSize={0}
+          onCollapse={handleRightPanelCollapse}
+          onExpand={handleRightPanelExpand}
+        >
           <RightPanel />
         </Panel>
       </PanelGroup>
