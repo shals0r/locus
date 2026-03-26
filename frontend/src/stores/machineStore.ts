@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Machine, MachineStatus } from "../types";
+import { LOCAL_MACHINE_ID } from "../types";
 
 interface MachineState {
   machines: Machine[];
@@ -19,14 +20,21 @@ export const useMachineStore = create<MachineState>((set) => ({
   activeMachineId: null,
   claudeViewActive: false,
   machineStatuses: {},
-  setMachines: (machines) => set({ machines }),
+  setMachines: (machines) =>
+    set({
+      machines: [...machines].sort((a, b) =>
+        a.id === LOCAL_MACHINE_ID ? -1 : b.id === LOCAL_MACHINE_ID ? 1 : 0,
+      ),
+    }),
   addMachine: (machine) =>
     set((s) => ({ machines: [...s.machines, machine] })),
-  removeMachine: (id) =>
+  removeMachine: (id) => {
+    if (id === LOCAL_MACHINE_ID) return;
     set((s) => ({
       machines: s.machines.filter((m) => m.id !== id),
       activeMachineId: s.activeMachineId === id ? null : s.activeMachineId,
-    })),
+    }));
+  },
   setActiveMachine: (id) => set({ activeMachineId: id, claudeViewActive: false }),
   setClaudeViewActive: (active) => set({ claudeViewActive: active, activeMachineId: active ? null : null }),
   setMachineStatus: (id, status) =>

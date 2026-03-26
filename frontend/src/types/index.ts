@@ -1,3 +1,9 @@
+export const LOCAL_MACHINE_ID = "local";
+
+export function isLocalMachine(machineId: string): boolean {
+  return machineId === LOCAL_MACHINE_ID;
+}
+
 export interface User {
   id: string;
   setup_completed: boolean;

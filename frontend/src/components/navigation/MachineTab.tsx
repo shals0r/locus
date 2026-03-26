@@ -1,4 +1,6 @@
+import { Monitor } from "lucide-react";
 import type { Machine, MachineStatus } from "../../types";
+import { isLocalMachine } from "../../types";
 import { useMachineStore } from "../../stores/machineStore";
 
 const statusColors: Record<MachineStatus, string> = {
@@ -12,6 +14,7 @@ export function MachineTab({ machine }: { machine: Machine }) {
   const setActiveMachine = useMachineStore((s) => s.setActiveMachine);
   const machineStatuses = useMachineStore((s) => s.machineStatuses);
 
+  const isLocal = isLocalMachine(machine.id);
   const status = machineStatuses[machine.id] ?? machine.status;
   const isActive = activeMachineId === machine.id;
 
@@ -25,7 +28,11 @@ export function MachineTab({ machine }: { machine: Machine }) {
       }`}
       style={{ height: "36px" }}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${statusColors[status]}`} />
+      {isLocal ? (
+        <Monitor size={16} className="shrink-0 text-accent" />
+      ) : (
+        <span className={`h-1.5 w-1.5 rounded-full ${statusColors[status]}`} />
+      )}
       <span className="truncate">{machine.name}</span>
     </button>
   );
