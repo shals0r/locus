@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     )
     in_docker: bool = False
 
+    # LLM settings for AI-assisted tier classification
+    llm_api_key: str = ""
+    llm_api_url: str = "https://api.anthropic.com/v1/messages"
+    llm_model: str = "claude-sonnet-4-20250514"
+
     @property
     def local_repo_scan_paths(self) -> list[str]:
         """Parse comma-separated repo scan paths into a list."""
