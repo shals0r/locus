@@ -79,7 +79,21 @@ Plans:
   6. User can start a task by selecting a machine, repo, and branch, which opens a working session with a pinned context strip showing task brief, source links, and a copy-to-clipboard button
   7. User can complete tasks via the context strip or by dragging to Done on the board
   8. User can open a command palette to fuzzy-search repos, machines, feed items, tasks, and actions, with VS Code-inspired keyboard shortcuts
-**Plans**: TBD
+**Plans**: 11 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — DB models (FeedItem, Task, IntegrationSource) + Pydantic schemas
+- [ ] 02-02-PLAN.md — Service layers (git_service, feed_service, task_service)
+- [ ] 02-03-PLAN.md — Git API routes + Feed API routes + Feed WebSocket
+- [ ] 02-04-PLAN.md — Task API routes + Command palette search endpoint
+- [ ] 02-05-PLAN.md — Integrations polling (APScheduler + 4 adapters)
+- [ ] 02-06-PLAN.md — Git sidebar UI (repo list, commit timeline, branch dropdown, git ops)
+- [ ] 02-07-PLAN.md — Feed panel UI (tier sections, feed cards, triage actions, WebSocket)
+- [ ] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
+- [ ] 02-09-PLAN.md — Diff viewer integration (center panel)
+- [ ] 02-10-PLAN.md — Command palette (cmdk)
+- [ ] 02-11-PLAN.md — Visual and functional verification checkpoint
+
 **UI hint**: yes
 
 ### Phase 3: Code Review, Diff & Editing
@@ -133,7 +147,7 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
 | 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
-| 2. Repository Management & Work Feed | 0/? | Not started | - |
+| 2. Repository Management & Work Feed | 0/11 | Planned | - |
 | 3. Code Review, Diff & Editing | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
 | 5. Host Agent | 0/? | Not started | - |
