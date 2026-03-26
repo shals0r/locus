@@ -18,6 +18,7 @@ from app.local.manager import local_machine_manager
 from app.ssh.manager import ssh_manager
 from app.ws.terminal import router as terminal_ws_router
 from app.ws.status import router as status_ws_router
+from app.integrations.scheduler import start_polling, stop_polling
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,13 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 logger.warning("Auto-connect failed for %s: %s", machine.name, exc)
 
+    # Start integration polling (APScheduler)
+    await start_polling()
+
     yield
+
+    # Shutdown integration polling
+    await stop_polling()
     await local_machine_manager.shutdown()
     await ssh_manager.shutdown()
     await engine.dispose()
