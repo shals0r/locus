@@ -17,6 +17,27 @@ class Settings(BaseSettings):
     reconnect_max_delay: float = 30.0
     reconnect_max_retries: int = 10
 
+    # Local machine settings (Docker-to-host SSH)
+    local_ssh_host: str = "host.docker.internal"
+    local_ssh_port: int = 22
+    local_ssh_user: str = ""
+    local_ssh_key: str = ""
+    local_repo_scan_paths_raw: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "LOCUS_LOCAL_REPO_SCAN_PATHS_RAW",
+            "LOCUS_LOCAL_REPO_SCAN_PATHS",
+        ),
+    )
+    in_docker: bool = False
+
+    @property
+    def local_repo_scan_paths(self) -> list[str]:
+        """Parse comma-separated repo scan paths into a list."""
+        if not self.local_repo_scan_paths_raw:
+            return []
+        return [p.strip() for p in self.local_repo_scan_paths_raw.split(",") if p.strip()]
+
     model_config = {
         "env_prefix": "LOCUS_",
     }
