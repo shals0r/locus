@@ -87,7 +87,7 @@ Plans:
 - [ ] 02-03-PLAN.md — Git API routes + GSD state endpoint + Feed API routes + transcript endpoint + Feed WebSocket
 - [ ] 02-04-PLAN.md — Task API routes + Command palette search endpoint
 - [ ] 02-05-PLAN.md — Integrations polling (APScheduler + 4 adapters + mention detection)
-- [ ] 02-06-PLAN.md — Git sidebar UI (repo list, GSD state badges, GSD actions, commit timeline, branch dropdown, git ops)
+- [x] 02-06-PLAN.md — Git sidebar UI (repo list, GSD state badges, GSD actions, commit timeline, branch dropdown, git ops)
 - [ ] 02-07-PLAN.md — Feed panel UI (tier sections, feed cards, triage actions, WebSocket)
 - [ ] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
 - [ ] 02-09-PLAN.md — Diff viewer integration (center panel)
