@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md
+stopped_at: Completed 02-02-PLAN.md (Wave 1 complete)
 last_updated: "2026-03-26T21:51:39.197Z"
 last_activity: 2026-03-26
 progress:
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 Phase: 02 (repository-management-work-feed) — EXECUTING
 Plan: 2 of 11
-Status: Ready to execute
+Status: Wave 1 complete, executing Wave 2
 Last activity: 2026-03-26
 
 Progress: [██████████] 100% (10/10 plans)
@@ -63,6 +63,7 @@ Progress: [██████████] 100% (10/10 plans)
 | Phase 01.1 P01 | 6min | 2 tasks | 9 files |
 | Phase 01.1 P02 | 5min | 2 tasks | 6 files |
 | Phase 01.1 P03 | 8min | 2 tasks | 11 files |
+| Phase 02 P01 | 2min | 2 tasks | 8 files |
 | Phase 02 P02 | 5min | 2 tasks | 8 files |
 
 ## Accumulated Context
@@ -96,6 +97,7 @@ Recent decisions affecting current work:
 - [Phase 01.1]: is_usable property gates all host operations -- Docker mode without SSH returns "needs_setup" status
 - [Phase 01.1]: 409 Conflict for needs_setup operations (consistent with "not connected" pattern for remote machines)
 - [Phase 01.1]: CenterPanel shows setup instructions panel instead of SessionTabBar when machine needs_setup
+- [Phase 02]: FeedItem uses JSON column for raw_payload; Task.feed_item_id nullable for manual tasks; IntegrationSource.source_type unique per type; selectin loading for Task->FeedItem relationship
 - [Phase 02]: All git ops via CLI over SSH, not GitPython (requires local filesystem)
 - [Phase 02]: AI tier classification calls Anthropic API with source-type heuristic fallback
 
@@ -115,5 +117,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-26T21:51:39.191Z
-Stopped at: Completed 02-02-PLAN.md
+Stopped at: Completed 02-02-PLAN.md (Wave 1 complete)
 Resume file: None

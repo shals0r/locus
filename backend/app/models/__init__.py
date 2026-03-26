@@ -5,6 +5,7 @@ from app.models.credential import Credential
 from app.models.session import TerminalSession
 from app.models.feed_item import FeedItem
 from app.models.task import Task
+from app.models.integration_source import IntegrationSource
 
 __all__ = [
     "Base",
@@ -14,4 +15,5 @@ __all__ = [
     "TerminalSession",
     "FeedItem",
     "Task",
+    "IntegrationSource",
 ]

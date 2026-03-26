@@ -1,25 +1,20 @@
-"""FeedItem model for the universal work feed.
-
-Stores items ingested from any source (webhooks, polling adapters,
-GSD events). Dedup via composite unique constraint on (source_type, external_id).
-"""
-
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import DateTime, JSON, String, Text, Boolean, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
 class FeedItem(Base):
-    """A single item in the universal work feed."""
+    """Universal work feed item ingested from any source."""
 
     __tablename__ = "feed_items"
     __table_args__ = (
-        UniqueConstraint("source_type", "external_id", name="uq_feed_source_external"),
+        UniqueConstraint(
+            "source_type", "external_id", name="uq_feed_source_external"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -28,15 +23,21 @@ class FeedItem(Base):
     source_type: Mapped[str] = mapped_column(String(50))
     external_id: Mapped[str] = mapped_column(String(500))
     title: Mapped[str] = mapped_column(String(500))
-    snippet: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    url: Mapped[str | None] = mapped_column(
+        String(1000), nullable=True, default=None
+    )
     tier: Mapped[str] = mapped_column(String(20), default="follow_up")
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
-    raw_payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    source_icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    snoozed_until: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    raw_payload: Mapped[dict | None] = mapped_column(
+        JSON, nullable=True, default=None
+    )
+    source_icon: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, default=None
+    )
+    snoozed_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
