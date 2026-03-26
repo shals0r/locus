@@ -73,9 +73,9 @@ export function TaskCard({ task }: TaskCardProps) {
   const faded = isDone && isOlderThan24h(task.completed_at);
 
   // Determine which source icon to show (from feed item's source_links keys)
-  const sourceType =
+  const sourceType: string | null =
     task.source_links && Object.keys(task.source_links).length > 0
-      ? Object.keys(task.source_links)[0]
+      ? (Object.keys(task.source_links)[0] ?? null)
       : null;
 
   const handleStart = (e: React.MouseEvent) => {

@@ -2,11 +2,13 @@ import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useTaskStore } from "../../stores/taskStore";
 import { apiGet } from "../../hooks/useApi";
 import type { TerminalSession } from "../../types";
 import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
 import { SessionTabBar } from "../navigation/SessionTabBar";
+import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 
@@ -19,6 +21,7 @@ export function CenterPanel() {
   const sessions = useSessionStore((s) => s.sessions);
   const setSessions = useSessionStore((s) => s.setSessions);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const activeTask = useTaskStore((s) => s.activeTask);
 
   const fetchedMachinesRef = useRef<Set<string>>(new Set());
 
@@ -100,6 +103,7 @@ export function CenterPanel() {
         </div>
       ) : (
         <>
+          {activeTask && <ContextStrip />}
           <SessionTabBar />
           <div className="relative flex-1 overflow-hidden">
             {!activeMachineId && (

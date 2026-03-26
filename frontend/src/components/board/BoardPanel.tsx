@@ -21,14 +21,20 @@ export function BoardPanel() {
     setCollapsed((prev) => ({ ...prev, [status]: !prev[status] }));
 
   // Group tasks by status
-  const grouped: Record<string, Task[]> = { queue: [], active: [], done: [] };
+  const queueTasks: Task[] = [];
+  const activeTasks: Task[] = [];
+  const doneTasks: Task[] = [];
   for (const task of tasks) {
-    const bucket = grouped[task.status];
-    if (bucket) {
-      bucket.push(task);
-    } else {
-      // Unknown statuses fall into queue
-      grouped.queue.push(task);
+    switch (task.status) {
+      case "active":
+        activeTasks.push(task);
+        break;
+      case "done":
+        doneTasks.push(task);
+        break;
+      default:
+        queueTasks.push(task);
+        break;
     }
   }
 
@@ -44,20 +50,20 @@ export function BoardPanel() {
     <div className="h-full overflow-y-auto">
       <TaskColumn
         status="queue"
-        tasks={grouped.queue}
-        isCollapsed={collapsed.queue}
+        tasks={queueTasks}
+        isCollapsed={collapsed.queue ?? false}
         onToggle={() => toggle("queue")}
       />
       <TaskColumn
         status="active"
-        tasks={grouped.active}
-        isCollapsed={collapsed.active}
+        tasks={activeTasks}
+        isCollapsed={collapsed.active ?? false}
         onToggle={() => toggle("active")}
       />
       <TaskColumn
         status="done"
-        tasks={grouped.done}
-        isCollapsed={collapsed.done}
+        tasks={doneTasks}
+        isCollapsed={collapsed.done ?? true}
         onToggle={() => toggle("done")}
       />
     </div>
