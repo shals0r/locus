@@ -1,7 +1,8 @@
-"""Claude Code session detection on remote machines via tmux."""
+"""Claude Code session detection on local and remote machines via tmux."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -123,4 +124,113 @@ async def detect_claude_session_status(
 
     # Fall back to pane capture
     waiting = await detect_waiting_for_input(conn, tmux_session, window_index)
+    return "waiting" if waiting else "running"
+
+
+# ---------------------------------------------------------------------------
+# Local (subprocess-based) variants for native mode
+# ---------------------------------------------------------------------------
+
+
+async def detect_claude_sessions_local() -> list[dict]:
+    """Detect running Claude Code sessions on the local machine via subprocess.
+
+    Scans all tmux windows for processes with 'claude' in the command name.
+    Returns same dict format as the SSH version.
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "tmux", "list-windows", "-a", "-F",
+            "#{session_name}:#{window_index}:#{window_name}:#{pane_current_command}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return []
+
+        sessions: list[dict] = []
+        for line in stdout.decode().strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split(":")
+            if len(parts) >= 4 and "claude" in parts[3].lower():
+                sessions.append(
+                    {
+                        "tmux_session": parts[0],
+                        "window_index": int(parts[1]),
+                        "window_name": parts[2],
+                        "command": parts[3],
+                        "status": "running",
+                    }
+                )
+        return sessions
+    except FileNotFoundError:
+        return []  # tmux not installed
+    except Exception as exc:
+        logger.warning("Failed to detect local Claude sessions: %s", exc)
+        return []
+
+
+async def _read_claude_marker_local() -> dict | None:
+    """Read the Claude Code status marker file on the local machine."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "cat", _MARKER_FILE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return None
+        data = json.loads(stdout.decode().strip())
+        ts = data.get("ts", 0)
+        if time.time() - ts > _MARKER_MAX_AGE:
+            return None
+        return data
+    except (json.JSONDecodeError, FileNotFoundError, Exception):
+        return None
+
+
+async def detect_waiting_for_input_local(
+    tmux_session: str,
+    window_index: int,
+) -> bool:
+    """Check if a local Claude Code session is waiting for user input."""
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            f"tmux capture-pane -t {tmux_session}:{window_index} -p | tail -5",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return False
+        output = stdout.decode().strip()
+        waiting_patterns = ["> ", "? ", "waiting for", "approve", "deny"]
+        return any(pattern in output.lower() for pattern in waiting_patterns)
+    except FileNotFoundError:
+        return False
+    except Exception as exc:
+        logger.warning("Failed to detect local waiting state: %s", exc)
+        return False
+
+
+async def detect_claude_session_status_local(
+    tmux_session: str,
+    window_index: int,
+) -> str:
+    """Unified local status detection: returns 'idle', 'running', or 'waiting'.
+
+    Checks marker file first, then falls back to tmux pane pattern matching.
+    """
+    # Check marker file first
+    marker = await _read_claude_marker_local()
+    if marker is not None:
+        status = marker.get("status")
+        if status in ("waiting", "running"):
+            return status
+
+    # Fall back to pane capture
+    waiting = await detect_waiting_for_input_local(tmux_session, window_index)
     return "waiting" if waiting else "running"

@@ -16,7 +16,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from app.database import async_session_factory
+from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
+from app.local.tmux import check_tmux_session_exists_local, create_local_terminal_in_tmux
 from app.models.session import TerminalSession
+from app.services.machine_registry import is_local_machine
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import check_tmux_session_exists, create_terminal_in_tmux
 
@@ -154,11 +157,15 @@ async def close_session_process(session_id: str) -> None:
 async def _get_or_create_process(
     session_id: str,
     terminal_session: TerminalSession,
-    conn: object,
+    machine_id: str,
     cols: int,
     rows: int,
 ) -> SessionProcess:
-    """Get existing process or create a new one."""
+    """Get existing process or create a new one.
+
+    Routes to local PTY (native mode), local SSH (Docker mode), or
+    remote SSH based on the machine_id.
+    """
     # Return existing if alive
     existing = _pool.get(session_id)
     if existing is not None and existing.alive:
@@ -173,20 +180,41 @@ async def _get_or_create_process(
     # Evict dead/idle processes before creating a new channel
     await _evict_pool()
 
-    # Create new
+    # Resolve connection based on machine type
+    if is_local_machine(machine_id):
+        conn = await local_machine_manager.get_connection()
+    else:
+        conn = await ssh_manager.get_connection(machine_id)
+
+    # Check if tmux session still exists for reattach
     tmux_name_to_use = terminal_session.tmux_session_name
     if tmux_name_to_use:
-        session_exists = await check_tmux_session_exists(conn, tmux_name_to_use)  # type: ignore[arg-type]
+        if is_local_machine(machine_id) and conn is None:
+            # Native mode: use subprocess-based check
+            session_exists = await check_tmux_session_exists_local(tmux_name_to_use)
+        else:
+            session_exists = await check_tmux_session_exists(conn, tmux_name_to_use)  # type: ignore[arg-type]
         if not session_exists:
             tmux_name_to_use = None
 
-    process, tmux_name = await create_terminal_in_tmux(
-        conn,  # type: ignore[arg-type]
-        session_name=tmux_name_to_use,
-        working_dir=terminal_session.repo_path,
-        cols=cols,
-        rows=rows,
-    )
+    # Create terminal process
+    if is_local_machine(machine_id) and conn is None:
+        # Native mode: use local PTY
+        process, tmux_name = await create_local_terminal_in_tmux(
+            session_name=tmux_name_to_use,
+            working_dir=terminal_session.repo_path,
+            cols=cols,
+            rows=rows,
+        )
+    else:
+        # Docker mode or remote machine: use SSH
+        process, tmux_name = await create_terminal_in_tmux(
+            conn,  # type: ignore[arg-type]
+            session_name=tmux_name_to_use,
+            working_dir=terminal_session.repo_path,
+            cols=cols,
+            rows=rows,
+        )
 
     sp = SessionProcess(process, tmux_name)
     sp.start_reading()
@@ -237,14 +265,17 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
         return
 
     machine_id = str(terminal_session.machine_id)
-    conn = await ssh_manager.get_connection(machine_id)
-    if conn is None:
-        try:
-            await websocket.send_text('{"type":"error","message":"Machine not connected."}')
-        except Exception:
-            pass
-        await websocket.close(code=4003, reason="Machine not connected")
-        return
+
+    # For remote machines, verify SSH connection exists
+    if not is_local_machine(machine_id):
+        conn = await ssh_manager.get_connection(machine_id)
+        if conn is None:
+            try:
+                await websocket.send_text('{"type":"error","message":"Machine not connected."}')
+            except Exception:
+                pass
+            await websocket.close(code=4003, reason="Machine not connected")
+            return
 
     try:
         cols = int(websocket.query_params.get("cols", "120"))
@@ -252,7 +283,7 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     except ValueError:
         cols, rows = 120, 40
 
-    sp = await _get_or_create_process(session_id, terminal_session, conn, cols, rows)
+    sp = await _get_or_create_process(session_id, terminal_session, machine_id, cols, rows)
 
     # Attach this WebSocket as the active output target
     sp.attach(websocket)

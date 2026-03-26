@@ -13,9 +13,16 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from app.database import async_session_factory
+from app.local.manager import LOCAL_MACHINE_ID, LOCAL_MACHINE_NAME, local_machine_manager
 from app.models.session import TerminalSession
 from app.services.auth import verify_token
-from app.services.claude import detect_claude_sessions, detect_claude_session_status
+from app.services.claude import (
+    detect_claude_sessions,
+    detect_claude_session_status,
+    detect_claude_sessions_local,
+    detect_claude_session_status_local,
+)
+from app.services.machine_registry import is_local_machine
 from app.ssh.manager import ssh_manager
 
 logger = logging.getLogger(__name__)
@@ -142,6 +149,46 @@ async def _detect_pane_display_name(
         return None
 
 
+async def _detect_pane_display_name_local(tmux_session_name: str) -> str | None:
+    """Get a display name for a local tmux session based on pane CWD + git branch."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "tmux", "display-message", "-p", "-t", tmux_session_name,
+            "#{pane_current_path}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return None
+
+        cwd = stdout.decode().strip()
+        if not cwd:
+            return None
+
+        dirname = cwd.rstrip("/").split("/")[-1]
+
+        # Try git branch
+        try:
+            br_proc = await asyncio.create_subprocess_exec(
+                "git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            br_stdout, _ = await br_proc.communicate()
+            if br_proc.returncode == 0:
+                branch = br_stdout.decode().strip()
+                if branch and branch != "HEAD":
+                    branch = re.sub(r"[.:\s]+", "-", branch)
+                    return f"{dirname}-{branch}"
+        except FileNotFoundError:
+            pass
+
+        return dirname
+    except Exception:
+        return None
+
+
 async def _poll_session_names() -> list[dict[str, str]]:
     """Check CWD+branch for all active sessions, return updates."""
     updates: list[dict[str, str]] = []
@@ -161,11 +208,21 @@ async def _poll_session_names() -> list[dict[str, str]]:
             continue
 
         machine_id = str(session.machine_id)
-        conn = ssh_manager._connections.get(machine_id)
-        if conn is None:
-            continue
 
-        display_name = await _detect_pane_display_name(conn, tmux_name)
+        if is_local_machine(machine_id):
+            conn = await local_machine_manager.get_connection()
+            if conn is not None:
+                # Docker mode: use SSH-based detection
+                display_name = await _detect_pane_display_name(conn, tmux_name)
+            else:
+                # Native mode: use subprocess-based detection
+                display_name = await _detect_pane_display_name_local(tmux_name)
+        else:
+            conn = ssh_manager._connections.get(machine_id)
+            if conn is None:
+                continue
+            display_name = await _detect_pane_display_name(conn, tmux_name)
+
         if display_name:
             updates.append({
                 "session_id": str(session.id),
@@ -179,7 +236,7 @@ async def _detect_session_statuses(
     machine_id: str,
     conn: object,
 ) -> list[dict]:
-    """Detect Claude sessions and their statuses on a machine."""
+    """Detect Claude sessions and their statuses on a machine via SSH."""
     sessions = await detect_claude_sessions(conn)  # type: ignore[arg-type]
     for s in sessions:
         s["machine_id"] = machine_id
@@ -189,11 +246,41 @@ async def _detect_session_statuses(
     return sessions
 
 
+async def _detect_local_claude_sessions() -> list[dict]:
+    """Detect Claude sessions on the local machine.
+
+    In Docker mode: uses SSH (same as remote machines).
+    In native mode: uses subprocess-based detection.
+    """
+    conn = await local_machine_manager.get_connection()
+    if conn is not None:
+        # Docker mode: reuse SSH-based detection
+        return await _detect_session_statuses(LOCAL_MACHINE_ID, conn)
+    else:
+        # Native mode: use subprocess-based detection
+        sessions = await detect_claude_sessions_local()
+        for s in sessions:
+            s["machine_id"] = LOCAL_MACHINE_ID
+            s["status"] = await detect_claude_session_status_local(
+                s["tmux_session"], s["window_index"]
+            )
+        return sessions
+
+
 async def _build_initial_snapshot() -> dict[str, Any]:
     """Build the initial status snapshot sent on WebSocket connect."""
     machine_statuses: dict[str, str] = {}
     claude_sessions: list[dict] = []
 
+    # Local machine is always online
+    machine_statuses[LOCAL_MACHINE_ID] = "online"
+    try:
+        local_sessions = await _detect_local_claude_sessions()
+        claude_sessions.extend(local_sessions)
+    except Exception as exc:
+        logger.warning("Failed to detect local Claude sessions: %s", exc)
+
+    # Remote machines
     for machine_id, conn in ssh_manager._connections.items():
         machine_statuses[machine_id] = ssh_manager.get_status(machine_id)
         try:
@@ -236,6 +323,17 @@ async def _poll_loop(
         try:
             # Machine status every Nth tick
             if tick % MACHINE_POLL_EVERY_N_TICKS == 0:
+                # Local machine always online
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "machine_status",
+                            "machine_id": LOCAL_MACHINE_ID,
+                            "status": "online",
+                        }
+                    )
+                )
+                # Remote machines
                 for machine_id in list(ssh_manager._connections.keys()):
                     current_status = ssh_manager.get_status(machine_id)
                     await websocket.send_text(
@@ -250,6 +348,13 @@ async def _poll_loop(
 
             # Claude sessions every tick
             all_claude: list[dict] = []
+            # Local machine Claude sessions
+            try:
+                local_sessions = await _detect_local_claude_sessions()
+                all_claude.extend(local_sessions)
+            except Exception:
+                pass
+            # Remote machine Claude sessions
             for machine_id, conn in ssh_manager._connections.items():
                 try:
                     sessions = await _detect_session_statuses(machine_id, conn)
