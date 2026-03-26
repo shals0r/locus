@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
+from app.api.feed import router as feed_router
+from app.api.git import router as git_router
+from app.api.gsd_events import router as gsd_events_router
 from app.api.machines import router as machines_router
 from app.api.sessions import router as sessions_router
 from app.api.settings import router as settings_router
@@ -16,6 +19,7 @@ from app.database import engine
 from app.models import Base
 from app.local.manager import local_machine_manager
 from app.ssh.manager import ssh_manager
+from app.ws.feed import router as feed_ws_router
 from app.ws.terminal import router as terminal_ws_router
 from app.ws.status import router as status_ws_router
 
@@ -96,6 +100,7 @@ app = FastAPI(
 
 app.include_router(terminal_ws_router)
 app.include_router(status_ws_router)
+app.include_router(feed_ws_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,6 +112,9 @@ app.add_middleware(
 
 
 app.include_router(auth_router)
+app.include_router(feed_router)
+app.include_router(git_router)
+app.include_router(gsd_events_router)
 app.include_router(machines_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
