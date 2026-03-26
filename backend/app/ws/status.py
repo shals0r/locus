@@ -210,6 +210,9 @@ async def _poll_session_names() -> list[dict[str, str]]:
         machine_id = str(session.machine_id)
 
         if is_local_machine(machine_id):
+            if not local_machine_manager.is_usable:
+                # Docker mode without SSH — skip this session
+                continue
             conn = await local_machine_manager.get_connection()
             if conn is not None:
                 # Docker mode: use SSH-based detection
@@ -249,9 +252,14 @@ async def _detect_session_statuses(
 async def _detect_local_claude_sessions() -> list[dict]:
     """Detect Claude sessions on the local machine.
 
-    In Docker mode: uses SSH (same as remote machines).
+    In Docker mode with SSH: uses SSH (same as remote machines).
+    In Docker mode without SSH: returns empty (machine needs setup).
     In native mode: uses subprocess-based detection.
     """
+    if not local_machine_manager.is_usable:
+        # Docker mode without SSH — can't detect anything on the host
+        return []
+
     conn = await local_machine_manager.get_connection()
     if conn is not None:
         # Docker mode: reuse SSH-based detection
@@ -272,8 +280,8 @@ async def _build_initial_snapshot() -> dict[str, Any]:
     machine_statuses: dict[str, str] = {}
     claude_sessions: list[dict] = []
 
-    # Local machine is always online
-    machine_statuses[LOCAL_MACHINE_ID] = "online"
+    # Local machine status (online or needs_setup)
+    machine_statuses[LOCAL_MACHINE_ID] = local_machine_manager.get_status()
     try:
         local_sessions = await _detect_local_claude_sessions()
         claude_sessions.extend(local_sessions)
@@ -323,13 +331,13 @@ async def _poll_loop(
         try:
             # Machine status every Nth tick
             if tick % MACHINE_POLL_EVERY_N_TICKS == 0:
-                # Local machine always online
+                # Local machine status (online or needs_setup)
                 await websocket.send_text(
                     json.dumps(
                         {
                             "type": "machine_status",
                             "machine_id": LOCAL_MACHINE_ID,
-                            "status": "online",
+                            "status": local_machine_manager.get_status(),
                         }
                     )
                 )

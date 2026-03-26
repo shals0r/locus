@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
+import { AlertTriangle } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { apiGet } from "../../hooks/useApi";
 import type { TerminalSession } from "../../types";
+import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
 import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
@@ -11,6 +13,8 @@ import { TerminalView } from "../terminal/TerminalView";
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
   const claudeViewActive = useMachineStore((s) => s.claudeViewActive);
+  const machineStatuses = useMachineStore((s) => s.machineStatuses);
+  const machines = useMachineStore((s) => s.machines);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
   const setSessions = useSessionStore((s) => s.setSessions);
@@ -18,9 +22,20 @@ export function CenterPanel() {
 
   const fetchedMachinesRef = useRef<Set<string>>(new Set());
 
+  // Determine if active machine needs setup
+  const activeMachine = machines.find((m) => m.id === activeMachineId);
+  const activeStatus = activeMachineId
+    ? machineStatuses[activeMachineId] ?? activeMachine?.status
+    : undefined;
+  const machineNeedsSetup =
+    activeMachineId &&
+    isLocalMachine(activeMachineId) &&
+    activeStatus === "needs_setup";
+
   // Fetch sessions only once per machine (not on every tab switch)
   useEffect(() => {
     if (!activeMachineId) return;
+    if (machineNeedsSetup) return;
     if (fetchedMachinesRef.current.has(activeMachineId)) return;
 
     fetchedMachinesRef.current.add(activeMachineId);
@@ -33,7 +48,7 @@ export function CenterPanel() {
         }
       })
       .catch(() => {});
-  }, [activeMachineId, setSessions, setActiveSession, activeSessionId]);
+  }, [activeMachineId, machineNeedsSetup, setSessions, setActiveSession, activeSessionId]);
 
   const machineSessions = sessions.filter(
     (s) => s.machine_id === activeMachineId,
@@ -45,6 +60,43 @@ export function CenterPanel() {
       {claudeViewActive ? (
         <div className="flex-1 overflow-y-auto">
           <ClaudeOverview />
+        </div>
+      ) : machineNeedsSetup ? (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="max-w-md text-center px-6">
+            <AlertTriangle size={32} className="mx-auto mb-4 text-warning" />
+            <h3 className="text-base font-semibold text-primary-text">
+              Host access not configured
+            </h3>
+            <p className="mt-2 text-sm text-muted leading-relaxed">
+              Locus is running inside Docker and cannot reach your host machine
+              directly. To use &quot;This Machine&quot; terminals, configure one of:
+            </p>
+            <div className="mt-4 space-y-3 text-left">
+              <div className="rounded border border-border bg-secondary p-3">
+                <p className="text-sm font-medium text-primary-text">
+                  Option A: Locus Host Agent
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  A lightweight process running on your host that bridges Docker
+                  to the host. Coming in Phase 5.
+                </p>
+              </div>
+              <div className="rounded border border-border bg-secondary p-3">
+                <p className="text-sm font-medium text-primary-text">
+                  Option B: SSH to host
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Set <code className="rounded bg-dominant px-1 text-accent">LOCUS_LOCAL_SSH_USER</code>{" "}
+                  and <code className="rounded bg-dominant px-1 text-accent">LOCUS_LOCAL_SSH_KEY</code>{" "}
+                  in your Docker environment to connect to the host via SSH.
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-muted">
+              Remote machines are unaffected and work normally.
+            </p>
+          </div>
         </div>
       ) : (
         <>

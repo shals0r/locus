@@ -65,7 +65,7 @@ def _local_machine_response() -> MachineResponse:
         username="",
         ssh_key_path="",
         repo_scan_paths=settings.local_repo_scan_paths,
-        status="online",
+        status=local_machine_manager.get_status(),
     )
 
 
@@ -287,6 +287,11 @@ async def scan_repos(
     within repo_scan_paths, up to 2 levels deep.
     """
     if is_local_machine(machine_id):
+        if not local_machine_manager.is_usable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Local machine is not available. Configure SSH to the host or install the Locus Host Agent.",
+            )
         scan_paths = settings.local_repo_scan_paths
         if not scan_paths:
             return []
@@ -348,6 +353,11 @@ async def get_tmux_sessions(
 ) -> TmuxSessionsResponse:
     """List tmux sessions on a machine (local or remote)."""
     if is_local_machine(machine_id):
+        if not local_machine_manager.is_usable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Local machine is not available. Configure SSH to the host or install the Locus Host Agent.",
+            )
         conn = await local_machine_manager.get_connection()
         if conn is not None:
             # Docker mode: use SSH-based listing
@@ -396,6 +406,11 @@ async def create_tmux_session(
 ) -> TmuxCreateResponse:
     """Create a new tmux session on a machine (local or remote)."""
     if is_local_machine(machine_id):
+        if not local_machine_manager.is_usable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Local machine is not available. Configure SSH to the host or install the Locus Host Agent.",
+            )
         conn = await local_machine_manager.get_connection()
         if conn is not None:
             # Docker mode: use SSH-based creation

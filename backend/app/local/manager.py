@@ -30,14 +30,17 @@ class LocalMachineManager:
     When running in Docker: uses SSH to host.docker.internal
     When running natively: uses asyncio subprocess directly
 
-    Provides a similar interface to SSHManager for consistency,
-    but the local machine is always considered "online".
+    Provides a similar interface to SSHManager for consistency.
+
+    Status logic:
+      - Native mode: always "online" (subprocess talks to real host)
+      - Docker + SSH connected: "online" (SSH reaches the host)
+      - Docker + no SSH: "needs_setup" (container shell is NOT the host)
     """
 
     def __init__(self) -> None:
         self._in_docker = is_running_in_docker()
         self._ssh_conn = None  # AsyncSSH connection (Docker mode only)
-        self._status = "online"  # Always online
 
     @property
     def in_docker(self) -> bool:
@@ -59,20 +62,45 @@ class LocalMachineManager:
         """Get connection object for the local machine.
 
         Returns:
-            AsyncSSH connection in Docker mode, or None in native mode.
-            None is the sentinel that tells callers to use the subprocess path.
+            AsyncSSH connection in Docker mode (or None if SSH not configured),
+            or None in native mode as the sentinel for the subprocess path.
+
+        IMPORTANT: In Docker mode, None means "not available" (needs_setup).
+        In native mode, None means "use subprocess". Callers MUST check
+        ``in_docker`` to distinguish these two cases.
         """
         if self._in_docker:
             return self._ssh_conn
-        return None  # Sentinel: use subprocess path
+        return None  # Sentinel: use subprocess path (native mode only)
+
+    @property
+    def is_usable(self) -> bool:
+        """Whether the local machine can actually execute commands on the host.
+
+        True in native mode (subprocess reaches host directly).
+        True in Docker mode only when SSH to host is connected.
+        False in Docker mode without SSH — subprocess would run in the
+        container, which is NOT the user's host machine.
+        """
+        if not self._in_docker:
+            return True
+        return self._ssh_conn is not None
 
     async def run_command(self, command: str) -> str:
         """Run a command on the local machine and return stdout.
 
         In Docker mode: executes via SSH connection.
         In native mode: executes via asyncio subprocess.
+
+        Raises ConnectionError if in Docker mode without SSH (needs_setup).
         """
-        if self._in_docker and self._ssh_conn:
+        if self._in_docker:
+            if self._ssh_conn is None:
+                raise ConnectionError(
+                    "Local machine is not available. In Docker mode, SSH to "
+                    "the host must be configured, or the Locus Host Agent "
+                    "must be running (Phase 5)."
+                )
             result = await self._ssh_conn.run(command, check=True)
             return result.stdout
         else:
@@ -85,8 +113,16 @@ class LocalMachineManager:
             return stdout.decode()
 
     def get_status(self) -> str:
-        """Get local machine status. Always 'online'."""
-        return "online"
+        """Get local machine status.
+
+        Returns "online" when the host is reachable (native mode, or
+        Docker with SSH), "needs_setup" when in Docker without SSH.
+        """
+        if not self._in_docker:
+            return "online"
+        if self._ssh_conn is not None:
+            return "online"
+        return "needs_setup"
 
     async def _connect_to_host(self) -> None:
         """SSH to the Docker host via host.docker.internal."""
@@ -99,8 +135,9 @@ class LocalMachineManager:
 
         if not username or not key_path:
             logger.warning(
-                "Local machine SSH not configured. Set LOCUS_LOCAL_SSH_USER "
-                "and LOCUS_LOCAL_SSH_KEY for Docker-to-host access."
+                "Local machine SSH not configured — status is 'needs_setup'. "
+                "Set LOCUS_LOCAL_SSH_USER and LOCUS_LOCAL_SSH_KEY for "
+                "Docker-to-host access, or install the Locus Host Agent."
             )
             return
 
@@ -121,7 +158,10 @@ class LocalMachineManager:
                 port,
             )
         except Exception as exc:
-            logger.warning("Local machine: SSH to host failed: %s", exc)
+            logger.warning(
+                "Local machine: SSH to host failed — status is 'needs_setup': %s",
+                exc,
+            )
             self._ssh_conn = None
 
     async def shutdown(self) -> None:

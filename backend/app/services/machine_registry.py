@@ -30,8 +30,9 @@ def get_machine_status(machine_id: str) -> str:
     """Get status for any machine.
 
     Returns:
-        One of "online", "offline", or "reconnecting".
-        Local machine is always "online".
+        One of "online", "offline", "reconnecting", or "needs_setup".
+        Local machine is "online" when host is reachable, "needs_setup"
+        when in Docker mode without SSH.
     """
     if machine_id == LOCAL_MACHINE_ID:
         return local_machine_manager.get_status()

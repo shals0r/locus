@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
+from app.local.manager import local_machine_manager
 from app.local.tmux import kill_tmux_session_local
 from app.models.machine import Machine
 from app.models.session import TerminalSession
@@ -206,7 +206,13 @@ async def create_session(
     connection at /ws/terminal/{session_id}.
     """
     # Verify machine exists (skip DB lookup for local machine)
-    if not is_local_machine(body.machine_id):
+    if is_local_machine(body.machine_id):
+        if not local_machine_manager.is_usable:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Local machine is not available. Configure SSH to the host or install the Locus Host Agent.",
+            )
+    else:
         machine = await db.get(Machine, UUID(body.machine_id))
         if machine is None:
             raise HTTPException(status_code=404, detail="Machine not found")

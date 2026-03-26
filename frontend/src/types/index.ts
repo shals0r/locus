@@ -37,7 +37,7 @@ export interface TerminalSession {
   display_name?: string | null;
 }
 
-export type MachineStatus = "online" | "offline" | "reconnecting";
+export type MachineStatus = "online" | "offline" | "reconnecting" | "needs_setup";
 export type ClaudeStatus = "idle" | "running" | "waiting";
 
 export interface ClaudeSession {

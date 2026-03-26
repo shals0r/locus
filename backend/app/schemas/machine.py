@@ -38,7 +38,7 @@ class MachineResponse(BaseModel):
     username: str
     ssh_key_path: str
     repo_scan_paths: list[str]
-    status: str  # "online" | "offline" | "reconnecting"
+    status: str  # "online" | "offline" | "reconnecting" | "needs_setup"
 
     model_config = {"from_attributes": True}
 

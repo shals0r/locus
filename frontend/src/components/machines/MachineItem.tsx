@@ -1,4 +1,4 @@
-import { Monitor } from "lucide-react";
+import { Monitor, AlertTriangle } from "lucide-react";
 import type { Machine, MachineStatus } from "../../types";
 import { isLocalMachine } from "../../types";
 import { useMachineStore } from "../../stores/machineStore";
@@ -7,6 +7,7 @@ const statusColors: Record<MachineStatus, string> = {
   online: "bg-success",
   offline: "bg-error",
   reconnecting: "bg-warning animate-pulse",
+  needs_setup: "bg-warning",
 };
 
 export function MachineItem({ machine }: { machine: Machine }) {
@@ -17,6 +18,7 @@ export function MachineItem({ machine }: { machine: Machine }) {
   const isLocal = isLocalMachine(machine.id);
   const status = machineStatuses[machine.id] ?? machine.status;
   const isActive = activeMachineId === machine.id;
+  const needsSetup = status === "needs_setup";
 
   return (
     <button
@@ -29,7 +31,11 @@ export function MachineItem({ machine }: { machine: Machine }) {
       style={{ minHeight: "36px" }}
     >
       {isLocal ? (
-        <Monitor size={16} className="shrink-0 text-accent" />
+        needsSetup ? (
+          <AlertTriangle size={16} className="shrink-0 text-warning" />
+        ) : (
+          <Monitor size={16} className="shrink-0 text-accent" />
+        )
       ) : (
         <span className={`h-2 w-2 shrink-0 rounded-full ${statusColors[status]}`} />
       )}

@@ -16,7 +16,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from app.database import async_session_factory
-from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
+from app.local.manager import local_machine_manager
 from app.local.tmux import check_tmux_session_exists_local, create_local_terminal_in_tmux
 from app.models.session import TerminalSession
 from app.services.machine_registry import is_local_machine
@@ -182,6 +182,12 @@ async def _get_or_create_process(
 
     # Resolve connection based on machine type
     if is_local_machine(machine_id):
+        # Block if local machine is in Docker mode without SSH
+        if not local_machine_manager.is_usable:
+            raise ConnectionError(
+                "Local machine is not available (needs_setup). "
+                "Configure SSH to the host or install the Locus Host Agent."
+            )
         conn = await local_machine_manager.get_connection()
     else:
         conn = await ssh_manager.get_connection(machine_id)
@@ -199,7 +205,7 @@ async def _get_or_create_process(
 
     # Create terminal process
     if is_local_machine(machine_id) and conn is None:
-        # Native mode: use local PTY
+        # Native mode: use local PTY (only reached when NOT in Docker)
         process, tmux_name = await create_local_terminal_in_tmux(
             session_name=tmux_name_to_use,
             working_dir=terminal_session.repo_path,
@@ -265,6 +271,18 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
         return
 
     machine_id = str(terminal_session.machine_id)
+
+    # For local machine in Docker mode without SSH, block terminal
+    if is_local_machine(machine_id) and not local_machine_manager.is_usable:
+        try:
+            await websocket.send_text(
+                '{"type":"error","message":"Local machine is not available. '
+                'Configure SSH to the host or install the Locus Host Agent."}'
+            )
+        except Exception:
+            pass
+        await websocket.close(code=4003, reason="Local machine needs setup")
+        return
 
     # For remote machines, verify SSH connection exists
     if not is_local_machine(machine_id):
