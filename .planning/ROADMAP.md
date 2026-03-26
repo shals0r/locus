@@ -91,7 +91,7 @@ Plans:
 - [x] 02-07-PLAN.md — Feed panel UI (tier sections, feed cards, triage actions, WebSocket)
 - [x] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
 - [ ] 02-09-PLAN.md — Diff viewer integration (center panel)
-- [ ] 02-10-PLAN.md — Command palette (cmdk)
+- [x] 02-10-PLAN.md — Command palette (cmdk)
 - [ ] 02-11-PLAN.md — Visual and functional verification checkpoint
 
 **UI hint**: yes
