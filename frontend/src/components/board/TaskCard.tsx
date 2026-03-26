@@ -1,0 +1,177 @@
+import { useState } from "react";
+import {
+  Play,
+  Check,
+  Pencil,
+  Trash2,
+  Github,
+  Ticket,
+  Calendar,
+  Globe,
+} from "lucide-react";
+import type { Task, FeedTier } from "../../types";
+import { useTransitionTask } from "../../hooks/useTaskQueries";
+import { useTaskStore } from "../../stores/taskStore";
+
+const TIER_BORDER: Record<FeedTier, string> = {
+  now: "border-l-red-500",
+  respond: "border-l-orange-500",
+  review: "border-l-blue-500",
+  prep: "border-l-yellow-500",
+  follow_up: "border-l-gray-500",
+};
+
+function SourceIcon({ sourceType }: { sourceType: string | null }) {
+  if (!sourceType) return null;
+  const size = 12;
+  const cls = "text-muted shrink-0";
+  switch (sourceType) {
+    case "github":
+      return <Github size={size} className={cls} />;
+    case "jira":
+      return <Ticket size={size} className={cls} />;
+    case "calendar":
+    case "google_calendar":
+      return <Calendar size={size} className={cls} />;
+    default:
+      return <Globe size={size} className={cls} />;
+  }
+}
+
+function isOlderThan24h(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  return Date.now() - new Date(dateStr).getTime() > 24 * 60 * 60 * 1000;
+}
+
+function formatTimestamp(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const now = Date.now();
+  const diff = now - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+interface TaskCardProps {
+  task: Task;
+}
+
+export function TaskCard({ task }: TaskCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const transitionMutation = useTransitionTask();
+  const setStartFlowTaskId = useTaskStore((s) => s.setStartFlowTaskId);
+  const startFlowTaskId = useTaskStore((s) => s.startFlowTaskId);
+
+  const tierColor = TIER_BORDER[task.tier] ?? "border-l-gray-500";
+  const isDone = task.status === "done";
+  const isActive = task.status === "active";
+  const isQueue = task.status === "queue";
+  const faded = isDone && isOlderThan24h(task.completed_at);
+
+  // Determine which source icon to show (from feed item's source_links keys)
+  const sourceType =
+    task.source_links && Object.keys(task.source_links).length > 0
+      ? Object.keys(task.source_links)[0]
+      : null;
+
+  const handleStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStartFlowTaskId(startFlowTaskId === task.id ? null : task.id);
+  };
+
+  const handleComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    transitionMutation.mutate({ id: task.id, status: "done" });
+  };
+
+  const handleDrop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    transitionMutation.mutate({ id: task.id, status: "done" });
+  };
+
+  return (
+    <div
+      className={`relative border-l-4 ${tierColor} px-2 py-1.5 hover:bg-hover transition-all cursor-pointer ${
+        faded ? "opacity-40" : ""
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Top row: source icon + title */}
+      <div className="flex items-center gap-1.5">
+        <SourceIcon sourceType={sourceType} />
+        <span
+          className={`flex-1 truncate text-sm font-medium text-primary-text ${
+            isDone ? "line-through" : ""
+          }`}
+        >
+          {task.title}
+        </span>
+      </div>
+
+      {/* Bottom row: context snippet or hover actions */}
+      <div className="mt-0.5 min-h-[20px]">
+        {isHovered ? (
+          <div className="flex items-center gap-1">
+            {isQueue && (
+              <>
+                <button
+                  title="Start"
+                  className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleStart}
+                >
+                  <Play size={14} />
+                </button>
+                <button
+                  title="Edit"
+                  className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  title="Drop"
+                  className="rounded p-1 text-muted hover:bg-destructive/20 hover:text-destructive transition-colors"
+                  onClick={handleDrop}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
+            {isActive && (
+              <>
+                <button
+                  title="Complete"
+                  className="rounded p-1 text-muted hover:bg-green-500/20 hover:text-green-400 transition-colors"
+                  onClick={handleComplete}
+                >
+                  <Check size={14} />
+                </button>
+                <button
+                  title="Edit"
+                  className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                >
+                  <Pencil size={14} />
+                </button>
+              </>
+            )}
+            {isDone && (
+              <span className="text-[10px] text-muted">
+                {formatTimestamp(task.completed_at)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="truncate text-xs text-muted">
+            {isDone && task.completed_at
+              ? `Completed ${formatTimestamp(task.completed_at)}`
+              : task.context ?? "\u00A0"}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import { Rss, LayoutGrid } from "lucide-react";
 import { useFeedStore } from "../../stores/feedStore";
 import { FeedPanel } from "../feed/FeedPanel";
+import { BoardPanel } from "../board/BoardPanel";
 
 /**
  * Right panel with Feed/Board tab toggle.
@@ -40,13 +41,7 @@ export function RightPanel() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === "feed" ? (
-          <FeedPanel />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-xs text-muted">Board coming soon</p>
-          </div>
-        )}
+        {activeTab === "feed" ? <FeedPanel /> : <BoardPanel />}
       </div>
     </div>
   );
