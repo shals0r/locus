@@ -14,6 +14,7 @@ from app.api.settings import router as settings_router
 from app.api.upload import router as upload_router
 from app.database import engine
 from app.models import Base
+from app.local.manager import local_machine_manager
 from app.ssh.manager import ssh_manager
 from app.ws.terminal import router as terminal_ws_router
 from app.ws.status import router as status_ws_router
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: create tables on startup, dispose engine on shutdown."""
-    from sqlalchemy import select
+    from sqlalchemy import select, text
     from app.database import async_session_factory
     from app.models.machine import Machine
     from app.services.crypto import decrypt_value
@@ -32,6 +33,30 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created")
+
+    # Migrate terminal_sessions.machine_id from UUID to VARCHAR if needed
+    # This handles existing databases that still have the old FK constraint.
+    # For fresh databases, create_all already creates the correct schema.
+    async with engine.begin() as mig_conn:
+        result = await mig_conn.execute(text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name = 'terminal_sessions' AND column_name = 'machine_id'"
+        ))
+        row = result.first()
+        if row and row[0] == "uuid":
+            logger.info("Migrating terminal_sessions.machine_id from UUID to VARCHAR(255)...")
+            await mig_conn.execute(text(
+                "ALTER TABLE terminal_sessions "
+                "DROP CONSTRAINT IF EXISTS terminal_sessions_machine_id_fkey"
+            ))
+            await mig_conn.execute(text(
+                "ALTER TABLE terminal_sessions "
+                "ALTER COLUMN machine_id TYPE VARCHAR(255) USING machine_id::text"
+            ))
+            logger.info("Migration complete: terminal_sessions.machine_id is now VARCHAR(255)")
+
+    # Initialize local machine connection
+    await local_machine_manager.initialize()
 
     # Auto-reconnect SSH to all machines
     async with async_session_factory() as db:
@@ -53,6 +78,7 @@ async def lifespan(app: FastAPI):
                 logger.warning("Auto-connect failed for %s: %s", machine.name, exc)
 
     yield
+    await local_machine_manager.shutdown()
     await ssh_manager.shutdown()
     await engine.dispose()
 

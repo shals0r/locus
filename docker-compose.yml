@@ -20,10 +20,17 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       target: production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       LOCUS_DB_URL: postgresql+asyncpg://locus:${LOCUS_DB_PASSWORD}@db:5432/locus
       LOCUS_SECRET_KEY: ${LOCUS_SECRET_KEY}
       LOCUS_ENCRYPTION_KEY: ${LOCUS_ENCRYPTION_KEY}
+      LOCUS_IN_DOCKER: "1"
+      LOCUS_LOCAL_SSH_HOST: host.docker.internal
+      LOCUS_LOCAL_SSH_PORT: ${LOCUS_HOST_SSH_PORT:-22}
+      LOCUS_LOCAL_SSH_USER: ${LOCUS_HOST_SSH_USER:-}
+      LOCUS_LOCAL_SSH_KEY: /home/locus/.ssh/id_ed25519
     ports:
       - "8080:8080"
     depends_on:
@@ -39,10 +46,17 @@ services:
       target: development
     profiles:
       - dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       LOCUS_DB_URL: postgresql+asyncpg://locus:${LOCUS_DB_PASSWORD}@db:5432/locus
       LOCUS_SECRET_KEY: ${LOCUS_SECRET_KEY}
       LOCUS_ENCRYPTION_KEY: ${LOCUS_ENCRYPTION_KEY}
+      LOCUS_IN_DOCKER: "1"
+      LOCUS_LOCAL_SSH_HOST: host.docker.internal
+      LOCUS_LOCAL_SSH_PORT: ${LOCUS_HOST_SSH_PORT:-22}
+      LOCUS_LOCAL_SSH_USER: ${LOCUS_HOST_SSH_USER:-}
+      LOCUS_LOCAL_SSH_KEY: /home/locus/.ssh/id_ed25519
     ports:
       - "8000:8000"
     depends_on:
