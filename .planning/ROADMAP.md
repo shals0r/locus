@@ -13,6 +13,7 @@ Locus delivers an engineering control plane in four phases: first the Docker sta
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Infrastructure & Terminal Core** - Docker stack, auth, SSH terminals, machine management, and three-panel layout shell
+- [ ] **Phase 1.1: Local Machine Support** (INSERTED) - Local terminals, repos, and Claude sessions without SSH — "This Machine" as first-class citizen
 - [ ] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar with GSD state, unified work feed with ingest API, command palette
 - [ ] **Phase 3: Code Review & Diff** - Local and MR diff viewing, AI-assisted review with comment promotion
 - [ ] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
@@ -42,6 +43,25 @@ Plans:
 - [x] 01-08-PLAN.md — [GAP] Backend tmux detach-on-disconnect, reattach-on-reconnect
 - [x] 01-09-PLAN.md — [GAP] Frontend terminal persistence across tab switches
 - [ ] 01-10-PLAN.md — [GAP] Mount ClaudeOverview + add /tmux-sessions endpoints
+
+**UI hint**: yes
+
+### Phase 1.1: Local Machine Support (INSERTED)
+**Goal**: User can open terminals, browse repos, and run Claude Code sessions on the machine running Locus without any SSH setup — "This Machine" is always present and always connected
+**Depends on**: Phase 1
+**Requirements**: Derived from TERM-01 through TERM-07 (local equivalents)
+**Success Criteria** (what must be TRUE):
+  1. A "This Machine" entry appears in the sidebar automatically on first launch — no manual setup, always shows as connected
+  2. User can open terminal tabs on the local machine that use local PTY/tmux (not SSH-to-localhost), with the same full terminal UX (256-color, mouse, resize)
+  3. User can see and attach to local tmux sessions, with the same detach/reattach behavior as remote machines
+  4. Local Claude Code sessions are detected and shown in the Claude overview, same as remote sessions
+  5. Local repo discovery works via filesystem scan, surfacing repos for Phase 2's git sidebar
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01.1-01-PLAN.md — Local machine module, machine registry, DB migration, Docker config
+- [ ] 01.1-02-PLAN.md — Wire backend API routes and WebSocket handlers for local machine
+- [ ] 01.1-03-PLAN.md — Frontend local machine display and visual verification
 
 **UI hint**: yes
 
@@ -84,11 +104,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
+| 1.1 Local Machine Support (INSERTED) | 0/3 | Planned | - |
 | 2. Repository Management & Work Feed | 0/? | Not started | - |
 | 3. Code Review & Diff | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
