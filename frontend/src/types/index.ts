@@ -50,3 +50,22 @@ export interface ClaudeSession {
   status: ClaudeStatus;
   last_activity: number;
 }
+
+// Feed types
+export type FeedTier = "now" | "respond" | "review" | "prep" | "follow_up";
+
+export interface FeedItem {
+  id: string;
+  source_type: string;
+  source_id: string | null;
+  title: string;
+  snippet: string | null;
+  url: string | null;
+  tier: FeedTier;
+  is_read: boolean;
+  is_dismissed: boolean;
+  snoozed_until: string | null;
+  raw_payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}

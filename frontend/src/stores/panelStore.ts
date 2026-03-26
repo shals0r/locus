@@ -10,7 +10,7 @@ interface PanelState {
 
 export const usePanelStore = create<PanelState>((set) => ({
   sidebarCollapsed: false,
-  rightPanelCollapsed: true, // D-06: collapsed by default in Phase 1
+  rightPanelCollapsed: false, // Phase 2: right panel visible with feed
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setRightPanelCollapsed: (collapsed) =>

@@ -14,12 +14,17 @@ import { Sidebar } from "./Sidebar";
 import { CenterPanel } from "./CenterPanel";
 import { RightPanel } from "./RightPanel";
 
+const RIGHT_PANEL_DEFAULT_SIZE = 25;
+
 export function AppShell() {
   const sidebarCollapsed = usePanelStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = usePanelStore((s) => s.setSidebarCollapsed);
+  const rightPanelCollapsed = usePanelStore((s) => s.rightPanelCollapsed);
+  const setRightPanelCollapsed = usePanelStore((s) => s.setRightPanelCollapsed);
   const toggleSidebar = usePanelStore((s) => s.toggleSidebar);
   const setMachines = useMachineStore((s) => s.setMachines);
   const sidebarRef = useRef<ImperativePanelHandle>(null);
+  const rightPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Fetch machines on mount
   useEffect(() => {
@@ -39,6 +44,27 @@ export function AppShell() {
       panel.expand();
     }
   }, [sidebarCollapsed]);
+
+  // Sync right panel ref with store state
+  useEffect(() => {
+    const panel = rightPanelRef.current;
+    if (!panel) return;
+
+    if (rightPanelCollapsed) {
+      panel.collapse();
+    } else {
+      panel.expand();
+    }
+  }, [rightPanelCollapsed]);
+
+  // Right panel collapse/expand events from drag
+  const handleRightPanelCollapse = useCallback(() => {
+    setRightPanelCollapsed(true);
+  }, [setRightPanelCollapsed]);
+
+  const handleRightPanelExpand = useCallback(() => {
+    setRightPanelCollapsed(false);
+  }, [setRightPanelCollapsed]);
 
   // Keyboard shortcut: Ctrl+B to toggle sidebar
   useEffect(() => {
@@ -97,14 +123,22 @@ export function AppShell() {
         />
 
         {/* Center panel */}
-        <Panel defaultSize={80} minSize={30}>
+        <Panel defaultSize={80 - RIGHT_PANEL_DEFAULT_SIZE} minSize={30}>
           <CenterPanel />
         </Panel>
 
-        <PanelResizeHandle className="w-0" />
+        <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors cursor-col-resize" />
 
-        {/* Right panel (collapsed in Phase 1) */}
-        <Panel defaultSize={0} collapsible collapsedSize={0}>
+        {/* Right panel (feed/board) */}
+        <Panel
+          ref={rightPanelRef}
+          defaultSize={RIGHT_PANEL_DEFAULT_SIZE}
+          minSize={15}
+          collapsible
+          collapsedSize={0}
+          onCollapse={handleRightPanelCollapse}
+          onExpand={handleRightPanelExpand}
+        >
           <RightPanel />
         </Panel>
       </PanelGroup>
