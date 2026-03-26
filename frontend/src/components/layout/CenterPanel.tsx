@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X, FileCode, GitCommitHorizontal } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
@@ -11,6 +11,7 @@ import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
+import { DiffViewer } from "../diff/DiffViewer";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -22,6 +23,8 @@ export function CenterPanel() {
   const setSessions = useSessionStore((s) => s.setSessions);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const activeTask = useTaskStore((s) => s.activeTask);
+  const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
+  const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
 
   const fetchedMachinesRef = useRef<Set<string>>(new Set());
 
@@ -105,8 +108,37 @@ export function CenterPanel() {
         <>
           {activeTask && <ContextStrip />}
           <SessionTabBar />
+          {activeDiffTab && (
+            <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
+              {activeDiffTab.type === "file" ? (
+                <FileCode size={12} className="text-accent shrink-0" />
+              ) : (
+                <GitCommitHorizontal size={12} className="text-accent shrink-0" />
+              )}
+              <span className="text-xs font-medium text-accent truncate">
+                {activeDiffTab.label}
+              </span>
+              <button
+                onClick={closeDiffTab}
+                className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
+                aria-label="Close diff tab"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
           <div className="relative flex-1 overflow-hidden">
-            {!activeMachineId && (
+            {activeDiffTab && (
+              <div className="absolute inset-0">
+                <DiffViewer
+                  machineId={activeDiffTab.machineId}
+                  repoPath={activeDiffTab.repoPath}
+                  filePath={activeDiffTab.filePath}
+                  commitSha={activeDiffTab.commitSha}
+                />
+              </div>
+            )}
+            {!activeDiffTab && !activeMachineId && (
               <div className="flex absolute inset-0 items-center justify-center">
                 <div className="text-center">
                   <h3 className="text-sm font-semibold text-primary-text">
@@ -119,13 +151,13 @@ export function CenterPanel() {
                 </div>
               </div>
             )}
-            {activeMachineId && machineSessions.length === 0 && (
+            {!activeDiffTab && activeMachineId && machineSessions.length === 0 && (
               <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
                 No session selected. Click &quot;+&quot; to start a terminal session.
               </div>
             )}
             {machineSessions.map((s) => {
-              const active = s.id === activeSessionId;
+              const active = s.id === activeSessionId && !activeDiffTab;
               return (
                 <div
                   key={s.id}
