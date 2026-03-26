@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar with GSD state, unified work feed with ingest API, command palette
 - [ ] **Phase 3: Code Review & Diff** - Local and MR diff viewing, AI-assisted review with comment promotion
 - [ ] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
+- [ ] **Phase 5: Host Agent** - Lightweight host-side agent enabling Docker-to-host terminal access, session persistence, and Claude detection without SSH
 
 ## Phase Details
 
@@ -101,10 +102,27 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
+### Phase 5: Host Agent
+**Goal**: A lightweight agent process running on the host machine bridges Docker-to-host communication, enabling "This Machine" terminals, tmux session management, Claude detection, and repo scanning without requiring SSH setup on the host
+**Depends on**: Phase 1.1
+**Success Criteria** (what must be TRUE):
+  1. User can start the host agent with a single command (`locus-agent start`) and Locus auto-detects it from Docker
+  2. User can open terminal sessions on the host machine from Locus running in Docker, with full terminal UX (colors, mouse, resize)
+  3. Terminal sessions survive browser disconnects and Docker restarts — the agent keeps processes alive and replays scrollback on reconnect
+  4. On Unix hosts, agent uses real tmux for session persistence; on Windows hosts (no WSL), agent manages sessions directly with its own process pool
+  5. Local Claude Code sessions on the host are detected and shown in the Claude overview
+  6. "This Machine" shows as "needs setup" with clear instructions when agent is not running, instead of silently giving a container shell
+**Plans**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 5 to break down)
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -113,3 +131,4 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4
 | 2. Repository Management & Work Feed | 0/? | Not started | - |
 | 3. Code Review & Diff | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
+| 5. Host Agent | 0/? | Not started | - |
