@@ -235,7 +235,9 @@ export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewPr
       try { fit.fit(); } catch {}
       // Force full repaint — renderer was paused while off-screen
       term.refresh(0, term.rows - 1);
-      term.focus();
+      // Don't call term.focus() here — it triggers DA queries whose
+      // responses appear as garbage text (e.g. "1;2c0;276;0c").
+      // User will click the terminal to focus it.
     });
     return () => cancelAnimationFrame(id);
   }, [isVisible]);

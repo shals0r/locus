@@ -110,21 +110,21 @@ export function useGitOp() {
       });
     },
     onSuccess: (_data, variables) => {
-      // Invalidate all git queries for this machine/repo
-      queryClient.invalidateQueries({
+      // Force immediate refetch of all git queries for this machine/repo
+      void queryClient.refetchQueries({
         queryKey: ["git-status-all", variables.machineId],
       });
-      queryClient.invalidateQueries({
+      void queryClient.refetchQueries({
         queryKey: ["git-commits", variables.machineId, variables.repoPath],
       });
-      queryClient.invalidateQueries({
+      void queryClient.refetchQueries({
         queryKey: [
           "git-changed-files",
           variables.machineId,
           variables.repoPath,
         ],
       });
-      queryClient.invalidateQueries({
+      void queryClient.refetchQueries({
         queryKey: ["git-branches", variables.machineId, variables.repoPath],
       });
     },

@@ -187,26 +187,26 @@ async def git_push(machine_id: str, repo_path: str) -> str:
 async def list_branches(machine_id: str, repo_path: str) -> list[dict]:
     """List all local branches with current branch indicator.
 
+    Uses plain `git branch` output (reliable across git versions and SSH).
+    Format: "* main" for current, "  feature" for others.
+
     Returns: list of {name, is_current}
     """
     safe_path = shlex.quote(repo_path)
 
     output = await run_command_on_machine(
-        machine_id,
-        f"git -C {safe_path} branch --format='%(refname:short)%x00%(HEAD)'"
+        machine_id, f"git -C {safe_path} branch"
     )
 
     branches = []
     for line in output.strip().split("\n"):
+        line = line.rstrip()
         if not line:
             continue
-        # Strip null bytes and surrounding whitespace from raw git output
-        clean = line.replace("\x00", "\t").strip()
-        parts = clean.split("\t")
-        name = parts[0].strip()
+        is_current = line.startswith("*")
+        name = line.lstrip("* ").strip()
         if not name:
             continue
-        is_current = parts[1].strip() == "*" if len(parts) > 1 else False
         branches.append({
             "name": name,
             "is_current": is_current,

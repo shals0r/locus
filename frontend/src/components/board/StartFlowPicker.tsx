@@ -6,6 +6,7 @@ import { useSessionStore } from "../../stores/sessionStore";
 import { useRepoStore } from "../../stores/repoStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { useTransitionTask } from "../../hooks/useTaskQueries";
+import { useGitOp } from "../../hooks/useGitStatus";
 import { apiPost } from "../../hooks/useApi";
 
 /** Sanitize a task title into a branch name. */
@@ -37,6 +38,7 @@ export function StartFlowPicker({ task }: StartFlowPickerProps) {
   const setStartFlowTaskId = useTaskStore((s) => s.setStartFlowTaskId);
 
   const transitionMutation = useTransitionTask();
+  const gitOp = useGitOp();
 
   // Flow state
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(
@@ -74,12 +76,31 @@ export function StartFlowPicker({ task }: StartFlowPickerProps) {
     setSelectedRepoPath(repo.repo_path);
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!selectedMachineId || !selectedRepoPath) return;
 
-    const branch = useNewBranch && newBranch.trim() ? newBranch.trim() : undefined;
+    const branchName = useNewBranch && newBranch.trim() ? newBranch.trim() : undefined;
     const machineId = selectedMachineId;
     const repoPath = selectedRepoPath;
+
+    // If user wants a new branch, pull latest main first then create it
+    if (branchName) {
+      try {
+        await gitOp.mutateAsync({
+          operation: "pull",
+          machineId,
+          repoPath,
+        });
+      } catch {
+        // Pull may fail if no upstream — continue anyway
+      }
+      await gitOp.mutateAsync({
+        operation: "create-branch",
+        machineId,
+        repoPath,
+        branch: branchName,
+      });
+    }
 
     transitionMutation.mutate(
       {
@@ -87,7 +108,7 @@ export function StartFlowPicker({ task }: StartFlowPickerProps) {
         status: "active",
         machine_id: machineId,
         repo_path: repoPath,
-        branch,
+        branch: branchName,
       },
       {
         onSuccess: async () => {
