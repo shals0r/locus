@@ -28,14 +28,17 @@ export function CenterPanel() {
   const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
   const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
 
-  // Hydrate activeTask from server on page load
+  // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
+  const hydrated = useRef(false);
   useEffect(() => {
+    if (hydrated.current) return;
     if (!activeTask && allTasks) {
       const firstActive = allTasks.find((t) => t.status === "active");
       if (firstActive) {
         setActiveTask(firstActive);
       }
+      hydrated.current = true;
     }
   }, [allTasks, activeTask, setActiveTask]);
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Check, GitBranch, Plus } from "lucide-react";
+import { Check, GitBranch, Plus, Loader2 } from "lucide-react";
 import { useBranches, useGitOp } from "../../hooks/useGitStatus";
 
 interface BranchDropdownProps {
@@ -16,6 +16,7 @@ export function BranchDropdown({
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
+  const [switching, setSwitching] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -51,13 +52,18 @@ export function BranchDropdown({
 
   const handleCheckout = async (branchName: string) => {
     if (branchName === currentBranch) return;
-    await gitOp.mutateAsync({
-      operation: "checkout",
-      machineId,
-      repoPath,
-      branch: branchName,
-    });
-    setOpen(false);
+    setSwitching(branchName);
+    try {
+      await gitOp.mutateAsync({
+        operation: "checkout",
+        machineId,
+        repoPath,
+        branch: branchName,
+      });
+    } finally {
+      setSwitching(null);
+      setOpen(false);
+    }
   };
 
   const handleCreateBranch = async () => {
@@ -95,9 +101,12 @@ export function BranchDropdown({
               <button
                 key={branch.name}
                 onClick={() => handleCheckout(branch.name)}
-                className="flex w-full items-center gap-2 px-2 py-1 text-xs hover:bg-hover transition-colors"
+                disabled={!!switching}
+                className="flex w-full items-center gap-2 px-2 py-1 text-xs hover:bg-hover transition-colors disabled:opacity-50"
               >
-                {branch.is_current ? (
+                {switching === branch.name ? (
+                  <Loader2 size={11} className="shrink-0 text-accent animate-spin" />
+                ) : branch.is_current ? (
                   <Check size={11} className="shrink-0 text-success" />
                 ) : (
                   <span className="w-[11px] shrink-0" />
