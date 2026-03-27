@@ -2,35 +2,42 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import type { FeedItem, FeedTier } from "../../types";
 import { FeedCard } from "./FeedCard";
 
-const TIER_LABELS: Record<FeedTier, string> = {
+type TierKey = FeedTier | "snoozed";
+
+const TIER_LABELS: Record<TierKey, string> = {
   now: "Now",
   respond: "Respond",
   review: "Review",
   prep: "Prep",
   follow_up: "Follow up",
+  snoozed: "Snoozed",
 };
 
-const TIER_HEADER_COLORS: Record<FeedTier, string> = {
+const TIER_HEADER_COLORS: Record<TierKey, string> = {
   now: "text-red-400",
   respond: "text-orange-400",
   review: "text-blue-400",
   prep: "text-yellow-400",
   follow_up: "text-gray-400",
+  snoozed: "text-zinc-400",
 };
 
-const TIER_BADGE_COLORS: Record<FeedTier, string> = {
+const TIER_BADGE_COLORS: Record<TierKey, string> = {
   now: "bg-red-500/20 text-red-400",
   respond: "bg-orange-500/20 text-orange-400",
   review: "bg-blue-500/20 text-blue-400",
   prep: "bg-yellow-500/20 text-yellow-400",
   follow_up: "bg-gray-500/20 text-gray-400",
+  snoozed: "bg-zinc-500/20 text-zinc-400",
 };
 
 interface FeedTierSectionProps {
-  tier: FeedTier;
+  tier: TierKey;
   items: FeedItem[];
   isCollapsed: boolean;
   onToggle: () => void;
+  /** When true, cards render in snoozed mode (unsnooze action, snooze-until label). */
+  isSnoozedSection?: boolean;
 }
 
 /**
@@ -41,6 +48,7 @@ export function FeedTierSection({
   items,
   isCollapsed,
   onToggle,
+  isSnoozedSection = false,
 }: FeedTierSectionProps) {
   const label = TIER_LABELS[tier];
   const headerColor = TIER_HEADER_COLORS[tier];
@@ -81,7 +89,7 @@ export function FeedTierSection({
         ) : (
           <div className="divide-y divide-border/50">
             {items.map((item) => (
-              <FeedCard key={item.id} item={item} />
+              <FeedCard key={item.id} item={item} isSnoozed={isSnoozedSection} />
             ))}
           </div>
         )}

@@ -22,8 +22,8 @@ export function FeedPanel() {
   // Fetch all feed items
   const { data: items, isLoading, error } = useFeedItems();
 
-  // Group items by tier
-  const groupedItems = useMemo(() => {
+  // Group items by tier, separating snoozed items into their own group
+  const { groupedItems, snoozedItems } = useMemo(() => {
     const groups: Record<FeedTier, FeedItem[]> = {
       now: [],
       respond: [],
@@ -31,22 +31,37 @@ export function FeedPanel() {
       prep: [],
       follow_up: [],
     };
+    const snoozed: FeedItem[] = [];
 
-    if (!items) return groups;
+    if (!items) return { groupedItems: groups, snoozedItems: snoozed };
+
+    const now = Date.now();
 
     for (const item of items) {
       if (!item.is_dismissed) {
-        const tier = item.tier as FeedTier;
-        if (groups[tier]) {
-          groups[tier].push(item);
+        // Check if item is currently snoozed
+        if (item.snoozed_until && new Date(item.snoozed_until).getTime() > now) {
+          snoozed.push(item);
+        } else {
+          const tier = item.tier as FeedTier;
+          if (groups[tier]) {
+            groups[tier].push(item);
+          }
         }
       }
     }
 
-    return groups;
+    // Sort snoozed items by snoozed_until ascending (earliest unsnooze first)
+    snoozed.sort(
+      (a, b) =>
+        new Date(a.snoozed_until!).getTime() - new Date(b.snoozed_until!).getTime(),
+    );
+
+    return { groupedItems: groups, snoozedItems: snoozed };
   }, [items]);
 
-  const totalItems = items?.filter((i) => !i.is_dismissed).length ?? 0;
+  const totalItems =
+    (items?.filter((i) => !i.is_dismissed).length ?? 0);
 
   if (isLoading) {
     return (
@@ -89,6 +104,15 @@ export function FeedPanel() {
           onToggle={() => toggleTierCollapsed(tier)}
         />
       ))}
+      {/* Snoozed section — 6th tier, collapsed by default */}
+      <FeedTierSection
+        key="snoozed"
+        tier="snoozed"
+        items={snoozedItems}
+        isCollapsed={tierCollapsed.snoozed ?? true}
+        onToggle={() => toggleTierCollapsed("snoozed")}
+        isSnoozedSection
+      />
     </div>
   );
 }

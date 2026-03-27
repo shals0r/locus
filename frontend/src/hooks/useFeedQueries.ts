@@ -59,6 +59,20 @@ export function useMarkRead() {
 }
 
 /**
+ * Unsnooze a feed item (PATCH /api/feed/{id} with {snoozed_until: null}).
+ */
+export function useUnsnoozeItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPatch<FeedItem>(`/api/feed/${id}`, { snoozed_until: null }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+}
+
+/**
  * Promote a feed item to a task.
  */
 export function usePromoteItem() {

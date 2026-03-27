@@ -183,21 +183,18 @@ async def get_feed_items(
 ) -> list[FeedItem]:
     """Query feed items with filters.
 
-    Excludes snoozed items (snoozed_until > now) and dismissed items
-    by default. Orders by tier priority then created_at descending.
+    Returns all non-dismissed items including snoozed ones. The frontend
+    separates snoozed items (snoozed_until in the future) into a dedicated
+    "Snoozed" section. Orders by tier priority then created_at descending.
     """
-    now = datetime.now(timezone.utc)
-
     stmt = select(FeedItem)
 
     # Filter dismissed
     if not include_dismissed:
         stmt = stmt.where(FeedItem.is_dismissed.is_(False))
 
-    # Filter snoozed (exclude items still snoozed)
-    stmt = stmt.where(
-        (FeedItem.snoozed_until.is_(None)) | (FeedItem.snoozed_until <= now)
-    )
+    # Snoozed items are no longer filtered out; the frontend separates them
+    # into a dedicated "Snoozed" tier section using the snoozed_until field.
 
     # Filter by tier
     if tier:

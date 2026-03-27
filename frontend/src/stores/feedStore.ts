@@ -17,6 +17,7 @@ export const useFeedStore = create<FeedState>((set) => ({
     review: true,
     prep: true,
     follow_up: true,
+    snoozed: true,
   },
   setActiveTab: (tab) => set({ activeTab: tab }),
   toggleTierCollapsed: (tier) =>

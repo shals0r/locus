@@ -56,12 +56,16 @@ export function DiffViewer({
   const isFileDiff = !!filePath;
   const isCommitDiff = !!commitSha;
 
-  const queryKey = isFileDiff
-    ? ["git-diff", machineId, repoPath, filePath]
-    : ["git-commit-diff", machineId, repoPath, commitSha];
+  const isCommitFileDiff = isCommitDiff && isFileDiff;
+
+  const queryKey = isCommitFileDiff
+    ? ["git-commit-file-diff", machineId, repoPath, commitSha, filePath]
+    : isFileDiff
+      ? ["git-diff", machineId, repoPath, filePath]
+      : ["git-commit-diff", machineId, repoPath, commitSha];
 
   const queryFn = async (): Promise<string> => {
-    if (isFileDiff) {
+    if (isFileDiff && !isCommitDiff) {
       const params = new URLSearchParams({
         machine_id: machineId,
         repo_path: repoPath,
@@ -86,6 +90,15 @@ export function DiffViewer({
       const resp = await apiGet<DiffResponse>(
         `/api/git/commit-diff?${params.toString()}`,
       );
+      // If a specific file is requested, extract just that file's diff section
+      if (isCommitFileDiff && resp.diff) {
+        const sections = resp.diff.split(/(?=^diff --git )/m);
+        const fileSection = sections.find((section) => {
+          const match = section.match(/^diff --git a\/(.*?) b\/(.*)/m);
+          return match && (match[1] === filePath || match[2] === filePath);
+        });
+        return fileSection ?? resp.diff;
+      }
       return resp.diff;
     }
     return "";

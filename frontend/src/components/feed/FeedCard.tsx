@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import {
+  AlarmClockOff,
   ArrowUp,
   Sparkles,
   Clock,
@@ -10,7 +11,7 @@ import {
   Globe,
 } from "lucide-react";
 import type { FeedItem, FeedTier } from "../../types";
-import { useDismissItem, useSnoozeItem, usePromoteItem, useMarkRead } from "../../hooks/useFeedQueries";
+import { useDismissItem, useSnoozeItem, useUnsnoozeItem, usePromoteItem, useMarkRead } from "../../hooks/useFeedQueries";
 import { SnoozeMenu } from "./SnoozeMenu";
 
 const TIER_COLORS: Record<FeedTier, string> = {
@@ -58,8 +59,54 @@ function relativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+/**
+ * Format a snoozed_until datetime into a human-friendly "Until ..." label.
+ */
+function formatSnoozedUntil(isoStr: string): string {
+  const target = new Date(isoStr);
+  const now = new Date();
+  const diffMs = target.getTime() - now.getTime();
+
+  if (diffMs <= 0) return "Unsnoozing...";
+
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  // Same day: show time like "Until 2:30 PM"
+  if (
+    target.getDate() === now.getDate() &&
+    target.getMonth() === now.getMonth() &&
+    target.getFullYear() === now.getFullYear()
+  ) {
+    return `Until ${target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+
+  // Tomorrow: "Until tomorrow 9:00 AM"
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (
+    target.getDate() === tomorrow.getDate() &&
+    target.getMonth() === tomorrow.getMonth() &&
+    target.getFullYear() === tomorrow.getFullYear()
+  ) {
+    return `Until tomorrow ${target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+
+  // Within 7 days: "Until Monday 9:00 AM"
+  if (diffDays < 7) {
+    const dayName = target.toLocaleDateString([], { weekday: "long" });
+    return `Until ${dayName} ${target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+
+  // Farther out: "Until Mar 15, 9:00 AM"
+  return `Until ${target.toLocaleDateString([], { month: "short", day: "numeric" })} ${target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
 interface FeedCardProps {
   item: FeedItem;
+  /** When true, render in snoozed mode with unsnooze action and snooze-until label. */
+  isSnoozed?: boolean;
 }
 
 /**
@@ -68,7 +115,7 @@ interface FeedCardProps {
  * Default state: source icon, title, timestamp, unread dot, snippet.
  * Hover state: action buttons replace snippet row.
  */
-export function FeedCard({ item }: FeedCardProps) {
+export function FeedCard({ item, isSnoozed = false }: FeedCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showSnooze, setShowSnooze] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
@@ -80,6 +127,7 @@ export function FeedCard({ item }: FeedCardProps) {
   const snoozeButtonRef = useRef<HTMLButtonElement>(null);
   const dismissMutation = useDismissItem();
   const snoozeMutation = useSnoozeItem();
+  const unsnoozeMutation = useUnsnoozeItem();
   const promoteMutation = usePromoteItem();
   const markReadMutation = useMarkRead();
 
@@ -92,7 +140,9 @@ export function FeedCard({ item }: FeedCardProps) {
     }
   };
 
-  const tierColor = TIER_COLORS[item.tier] ?? "border-l-gray-500";
+  const tierColor = isSnoozed
+    ? "border-l-zinc-500"
+    : TIER_COLORS[item.tier] ?? "border-l-gray-500";
 
   const handleCardClick = useCallback(() => {
     if (!item.is_read) {
@@ -160,6 +210,16 @@ export function FeedCard({ item }: FeedCardProps) {
     [item.id, snoozeMutation],
   );
 
+  const handleUnsnooze = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      unsnoozeMutation.mutate(item.id, {
+        onSuccess: () => showFeedback("Unsnoozed", true),
+      });
+    },
+    [item.id, unsnoozeMutation],
+  );
+
   return (
     <>
       <div
@@ -193,54 +253,85 @@ export function FeedCard({ item }: FeedCardProps) {
           )}
         </div>
 
-        {/* Bottom row: snippet or action buttons on hover */}
+        {/* Bottom row: snippet/snooze-until or action buttons on hover */}
         <div className="mt-0.5 min-h-[20px]">
-          {isHovered ? (
-            <div className="flex items-center gap-1">
-              <button
-                title="Quick Promote"
-                className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
-                onClick={handleQuickPromote}
-              >
-                <ArrowUp size={14} />
-              </button>
-              <button
-                title="Deep Promote"
-                className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
-                onClick={handleDeepPromote}
-              >
-                <Sparkles size={14} />
-              </button>
-              <button
-                ref={snoozeButtonRef}
-                title="Snooze"
-                className="rounded p-1 text-muted hover:bg-warning/20 hover:text-warning transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSnooze(!showSnooze);
-                }}
-              >
-                <Clock size={14} />
-              </button>
-              {showSnooze && (
-                <SnoozeMenu
-                  anchorRef={snoozeButtonRef}
-                  onSnooze={handleSnooze}
-                  onClose={() => setShowSnooze(false)}
-                />
-              )}
-              <button
-                title="Dismiss"
-                className="rounded p-1 text-muted hover:bg-destructive/20 hover:text-destructive transition-colors"
-                onClick={handleDismiss}
-              >
-                <X size={14} />
-              </button>
-            </div>
+          {isSnoozed ? (
+            /* Snoozed card: show snooze-until label + unsnooze action */
+            isHovered ? (
+              <div className="flex items-center gap-1">
+                <button
+                  title="Unsnooze"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleUnsnooze}
+                >
+                  <AlarmClockOff size={12} />
+                  <span>Unsnooze</span>
+                </button>
+                <button
+                  title="Dismiss"
+                  className="rounded p-1 text-muted hover:bg-destructive/20 hover:text-destructive transition-colors"
+                  onClick={handleDismiss}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <p className="flex items-center gap-1 truncate text-xs text-muted">
+                <Clock size={11} className="shrink-0" />
+                {item.snoozed_until
+                  ? formatSnoozedUntil(item.snoozed_until)
+                  : "\u00A0"}
+              </p>
+            )
           ) : (
-            <p className="truncate text-xs text-muted">
-              {item.snippet ?? "\u00A0"}
-            </p>
+            /* Normal card: snippet or full triage actions on hover */
+            isHovered ? (
+              <div className="flex items-center gap-1">
+                <button
+                  title="Quick Promote"
+                  className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleQuickPromote}
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <button
+                  title="Deep Promote"
+                  className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleDeepPromote}
+                >
+                  <Sparkles size={14} />
+                </button>
+                <button
+                  ref={snoozeButtonRef}
+                  title="Snooze"
+                  className="rounded p-1 text-muted hover:bg-warning/20 hover:text-warning transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSnooze(!showSnooze);
+                  }}
+                >
+                  <Clock size={14} />
+                </button>
+                {showSnooze && (
+                  <SnoozeMenu
+                    anchorRef={snoozeButtonRef}
+                    onSnooze={handleSnooze}
+                    onClose={() => setShowSnooze(false)}
+                  />
+                )}
+                <button
+                  title="Dismiss"
+                  className="rounded p-1 text-muted hover:bg-destructive/20 hover:text-destructive transition-colors"
+                  onClick={handleDismiss}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <p className="truncate text-xs text-muted">
+                {item.snippet ?? "\u00A0"}
+              </p>
+            )
           )}
         </div>
       </div>
