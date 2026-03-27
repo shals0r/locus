@@ -40,7 +40,7 @@ class GsdEventRequest(BaseModel):
     message: str | None = None
 
 
-@router.post("/")
+@router.post("")
 async def submit_gsd_event(
     body: GsdEventRequest,
     _user: dict = Depends(get_current_user),

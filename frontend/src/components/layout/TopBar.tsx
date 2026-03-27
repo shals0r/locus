@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Settings, LogOut, User, Wifi, Database, Bot } from "lucide-react";
+import { Settings, LogOut, User, Wifi, Database, Bot, Search } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { useMachineStore } from "../../stores/machineStore";
 import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
@@ -83,9 +83,23 @@ export function TopBar() {
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between bg-secondary px-4">
-      {/* Left: Logo */}
-      <div className="flex items-center gap-2">
+      {/* Left: Logo + Search trigger */}
+      <div className="flex items-center gap-4">
         <span className="text-lg font-semibold text-primary-text">Locus</span>
+        <button
+          onClick={() => {
+            document.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }),
+            );
+          }}
+          className="flex items-center gap-2 rounded border border-border bg-dominant/50 px-3 py-1 text-xs text-muted hover:border-accent/50 hover:text-primary-text transition-colors"
+        >
+          <Search size={12} />
+          <span>Search or jump to...</span>
+          <kbd className="ml-4 rounded border border-border bg-secondary px-1 text-[10px] font-mono">
+            Ctrl+K
+          </kbd>
+        </button>
       </div>
 
       {/* Center: Status indicators */}

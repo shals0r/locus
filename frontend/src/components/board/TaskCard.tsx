@@ -10,7 +10,7 @@ import {
   Globe,
 } from "lucide-react";
 import type { Task, FeedTier } from "../../types";
-import { useTransitionTask } from "../../hooks/useTaskQueries";
+import { useTransitionTask, useUpdateTask } from "../../hooks/useTaskQueries";
 import { useTaskStore } from "../../stores/taskStore";
 
 const TIER_BORDER: Record<FeedTier, string> = {
@@ -62,7 +62,11 @@ interface TaskCardProps {
 
 export function TaskCard({ task }: TaskCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editContext, setEditContext] = useState(task.context ?? "");
   const transitionMutation = useTransitionTask();
+  const updateMutation = useUpdateTask();
   const setStartFlowTaskId = useTaskStore((s) => s.setStartFlowTaskId);
   const startFlowTaskId = useTaskStore((s) => s.startFlowTaskId);
 
@@ -92,6 +96,66 @@ export function TaskCard({ task }: TaskCardProps) {
     e.stopPropagation();
     transitionMutation.mutate({ id: task.id, status: "done" });
   };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(task.title);
+    setEditContext(task.context ?? "");
+    setIsEditing(true);
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateMutation.mutate(
+      { id: task.id, title: editTitle, context: editContext || undefined },
+      { onSuccess: () => setIsEditing(false) },
+    );
+  };
+
+  const handleCancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className={`relative border-l-4 ${tierColor} px-2 py-1.5`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          type="text"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          className="mb-1 w-full rounded border border-border bg-secondary px-1.5 py-1 text-sm text-primary-text outline-none focus:border-accent"
+          placeholder="Title"
+          autoFocus
+        />
+        <textarea
+          value={editContext}
+          onChange={(e) => setEditContext(e.target.value)}
+          rows={2}
+          className="mb-1.5 w-full resize-none rounded border border-border bg-secondary px-1.5 py-1 text-xs text-primary-text outline-none focus:border-accent"
+          placeholder="Context (optional)"
+        />
+        <div className="flex justify-end gap-1.5">
+          <button
+            className="rounded px-2 py-0.5 text-[10px] text-muted hover:text-primary-text transition-colors"
+            onClick={handleCancelEdit}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded bg-accent px-2 py-0.5 text-[10px] font-medium text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
+            onClick={handleSave}
+            disabled={!editTitle.trim() || updateMutation.isPending}
+          >
+            {updateMutation.isPending ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -129,6 +193,7 @@ export function TaskCard({ task }: TaskCardProps) {
                 <button
                   title="Edit"
                   className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleEdit}
                 >
                   <Pencil size={14} />
                 </button>
@@ -153,6 +218,7 @@ export function TaskCard({ task }: TaskCardProps) {
                 <button
                   title="Edit"
                   className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+                  onClick={handleEdit}
                 >
                   <Pencil size={14} />
                 </button>

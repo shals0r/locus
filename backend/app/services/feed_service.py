@@ -230,6 +230,7 @@ async def update_feed_item(
             setattr(item, field, value)
 
     await db.flush()
+    await db.refresh(item)
     return item
 
 

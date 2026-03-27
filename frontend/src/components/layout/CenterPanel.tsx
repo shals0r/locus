@@ -4,6 +4,7 @@ import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { apiGet } from "../../hooks/useApi";
+import { useTasks } from "../../hooks/useTaskQueries";
 import type { TerminalSession } from "../../types";
 import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
@@ -23,8 +24,20 @@ export function CenterPanel() {
   const setSessions = useSessionStore((s) => s.setSessions);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const activeTask = useTaskStore((s) => s.activeTask);
+  const setActiveTask = useTaskStore((s) => s.setActiveTask);
   const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
   const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
+
+  // Hydrate activeTask from server on page load
+  const { data: allTasks } = useTasks();
+  useEffect(() => {
+    if (!activeTask && allTasks) {
+      const firstActive = allTasks.find((t) => t.status === "active");
+      if (firstActive) {
+        setActiveTask(firstActive);
+      }
+    }
+  }, [allTasks, activeTask, setActiveTask]);
 
   const fetchedMachinesRef = useRef<Set<string>>(new Set());
 

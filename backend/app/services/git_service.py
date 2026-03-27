@@ -200,10 +200,16 @@ async def list_branches(machine_id: str, repo_path: str) -> list[dict]:
     for line in output.strip().split("\n"):
         if not line:
             continue
-        parts = line.split("\x00")
+        # Strip null bytes and surrounding whitespace from raw git output
+        clean = line.replace("\x00", "\t").strip()
+        parts = clean.split("\t")
+        name = parts[0].strip()
+        if not name:
+            continue
+        is_current = parts[1].strip() == "*" if len(parts) > 1 else False
         branches.append({
-            "name": parts[0],
-            "is_current": parts[1].strip() == "*" if len(parts) > 1 else False,
+            "name": name,
+            "is_current": is_current,
         })
     return branches
 

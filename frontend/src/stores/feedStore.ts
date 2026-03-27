@@ -14,7 +14,7 @@ export const useFeedStore = create<FeedState>((set) => ({
   tierCollapsed: {
     now: false,
     respond: false,
-    review: false,
+    review: true,
     prep: true,
     follow_up: true,
   },

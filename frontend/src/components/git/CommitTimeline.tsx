@@ -1,4 +1,5 @@
 import { useCommitLog } from "../../hooks/useGitStatus";
+import { useSessionStore } from "../../stores/sessionStore";
 
 interface CommitTimelineProps {
   machineId: string;
@@ -22,6 +23,7 @@ function timeAgo(dateStr: string): string {
 
 export function CommitTimeline({ machineId, repoPath }: CommitTimelineProps) {
   const { data: commits, isLoading } = useCommitLog(machineId, repoPath);
+  const openDiffTab = useSessionStore((s) => s.openDiffTab);
 
   if (isLoading) {
     return (
@@ -49,6 +51,15 @@ export function CommitTimeline({ machineId, repoPath }: CommitTimelineProps) {
           key={commit.sha}
           className="group flex w-full items-start gap-2 px-2 py-1 text-left hover:bg-hover/50 transition-colors"
           title={`${commit.sha.slice(0, 8)} - ${commit.message}\n${commit.author}`}
+          onClick={() =>
+            openDiffTab({
+              type: "commit",
+              machineId,
+              repoPath,
+              commitSha: commit.sha,
+              label: commit.message.split("\n")[0],
+            })
+          }
         >
           {/* Timeline dot */}
           <div className="relative z-10 mt-1 flex shrink-0">

@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { Monitor, GitBranch, X, Loader2 } from "lucide-react";
-import type { Task, Machine, RepoDetail } from "../../types";
+import type { Task, Machine, RepoDetail, TerminalSession } from "../../types";
 import { useMachineStore } from "../../stores/machineStore";
+import { useSessionStore } from "../../stores/sessionStore";
 import { useRepoStore } from "../../stores/repoStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { useTransitionTask } from "../../hooks/useTaskQueries";
+import { apiPost } from "../../hooks/useApi";
 
 /** Sanitize a task title into a branch name. */
 function toBranchName(title: string): string {
@@ -28,6 +30,9 @@ interface StartFlowPickerProps {
 export function StartFlowPicker({ task }: StartFlowPickerProps) {
   const machines = useMachineStore((s) => s.machines);
   const machineStatuses = useMachineStore((s) => s.machineStatuses);
+  const setActiveMachine = useMachineStore((s) => s.setActiveMachine);
+  const addSession = useSessionStore((s) => s.addSession);
+  const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const repoMap = useRepoStore((s) => s.repos);
   const setStartFlowTaskId = useTaskStore((s) => s.setStartFlowTaskId);
 
@@ -73,18 +78,37 @@ export function StartFlowPicker({ task }: StartFlowPickerProps) {
     if (!selectedMachineId || !selectedRepoPath) return;
 
     const branch = useNewBranch && newBranch.trim() ? newBranch.trim() : undefined;
+    const machineId = selectedMachineId;
+    const repoPath = selectedRepoPath;
 
     transitionMutation.mutate(
       {
         id: task.id,
         status: "active",
-        machine_id: selectedMachineId,
-        repo_path: selectedRepoPath,
+        machine_id: machineId,
+        repo_path: repoPath,
         branch,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           setStartFlowTaskId(null);
+
+          // Switch CenterPanel to the selected machine
+          setActiveMachine(machineId);
+
+          // Create a terminal session on that machine
+          try {
+            const session = await apiPost<TerminalSession>("/api/sessions", {
+              machine_id: machineId,
+              session_type: "shell",
+              repo_path: repoPath,
+            });
+            addSession(session);
+            setActiveSession(session.id);
+          } catch {
+            // Session creation failed — machine tab is still switched,
+            // user can manually create a session via the "+" button.
+          }
         },
       },
     );

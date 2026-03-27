@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   ArrowUp,
   Sparkles,
@@ -74,12 +74,23 @@ export function FeedCard({ item }: FeedCardProps) {
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [promoteTitle, setPromoteTitle] = useState(item.title);
   const [promoteContext, setPromoteContext] = useState(item.snippet ?? "");
-  const [isDismissing, setIsDismissing] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
 
+  const snoozeButtonRef = useRef<HTMLButtonElement>(null);
   const dismissMutation = useDismissItem();
   const snoozeMutation = useSnoozeItem();
   const promoteMutation = usePromoteItem();
   const markReadMutation = useMarkRead();
+
+  const showFeedback = (msg: string, exit = false) => {
+    setFeedback(msg);
+    if (exit) {
+      setIsExiting(true);
+    } else {
+      setTimeout(() => setFeedback(null), 1500);
+    }
+  };
 
   const tierColor = TIER_COLORS[item.tier] ?? "border-l-gray-500";
 
@@ -94,11 +105,14 @@ export function FeedCard({ item }: FeedCardProps) {
   const handleQuickPromote = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      promoteMutation.mutate({
-        feedItemId: item.id,
-        title: item.title,
-        context: item.snippet ?? undefined,
-      });
+      promoteMutation.mutate(
+        {
+          feedItemId: item.id,
+          title: item.title,
+          context: item.snippet ?? undefined,
+        },
+        { onSuccess: () => showFeedback("Sent to board ✓", true) },
+      );
     },
     [item, promoteMutation],
   );
@@ -114,26 +128,33 @@ export function FeedCard({ item }: FeedCardProps) {
   );
 
   const handlePromoteConfirm = useCallback(() => {
-    promoteMutation.mutate({
-      feedItemId: item.id,
-      title: promoteTitle,
-      context: promoteContext || undefined,
-    });
+    promoteMutation.mutate(
+      {
+        feedItemId: item.id,
+        title: promoteTitle,
+        context: promoteContext || undefined,
+      },
+      { onSuccess: () => showFeedback("Sent to board ✓", true) },
+    );
     setShowPromoteModal(false);
   }, [item.id, promoteTitle, promoteContext, promoteMutation]);
 
   const handleDismiss = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      setIsDismissing(true);
-      dismissMutation.mutate(item.id);
+      dismissMutation.mutate(item.id, {
+        onSuccess: () => showFeedback("Dismissed", true),
+      });
     },
     [item.id, dismissMutation],
   );
 
   const handleSnooze = useCallback(
     (until: string) => {
-      snoozeMutation.mutate({ id: item.id, until });
+      snoozeMutation.mutate(
+        { id: item.id, until },
+        { onSuccess: () => showFeedback("Snoozed", true) },
+      );
       setShowSnooze(false);
     },
     [item.id, snoozeMutation],
@@ -143,15 +164,21 @@ export function FeedCard({ item }: FeedCardProps) {
     <>
       <div
         className={`relative border-l-4 ${tierColor} px-2 py-1.5 hover:bg-hover transition-all cursor-pointer ${
-          isDismissing ? "opacity-0 transition-opacity duration-300" : ""
+          isExiting ? "opacity-0 max-h-0 py-0 overflow-hidden transition-all duration-300" : ""
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
           setIsHovered(false);
-          setShowSnooze(false);
         }}
         onClick={handleCardClick}
       >
+        {/* Feedback overlay */}
+        {feedback && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-dominant/90">
+            <span className="text-xs font-medium text-accent">{feedback}</span>
+          </div>
+        )}
+
         {/* Top row: icon + title + timestamp + unread dot */}
         <div className="flex items-center gap-1.5">
           <SourceIcon sourceType={item.source_type} />
@@ -184,24 +211,24 @@ export function FeedCard({ item }: FeedCardProps) {
               >
                 <Sparkles size={14} />
               </button>
-              <div className="relative">
-                <button
-                  title="Snooze"
-                  className="rounded p-1 text-muted hover:bg-warning/20 hover:text-warning transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSnooze(!showSnooze);
-                  }}
-                >
-                  <Clock size={14} />
-                </button>
-                {showSnooze && (
-                  <SnoozeMenu
-                    onSnooze={handleSnooze}
-                    onClose={() => setShowSnooze(false)}
-                  />
-                )}
-              </div>
+              <button
+                ref={snoozeButtonRef}
+                title="Snooze"
+                className="rounded p-1 text-muted hover:bg-warning/20 hover:text-warning transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSnooze(!showSnooze);
+                }}
+              >
+                <Clock size={14} />
+              </button>
+              {showSnooze && (
+                <SnoozeMenu
+                  anchorRef={snoozeButtonRef}
+                  onSnooze={handleSnooze}
+                  onClose={() => setShowSnooze(false)}
+                />
+              )}
               <button
                 title="Dismiss"
                 className="rounded p-1 text-muted hover:bg-destructive/20 hover:text-destructive transition-colors"

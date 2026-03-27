@@ -78,6 +78,11 @@ async def promote_feed_item(
         source_links=source_links,
     )
     db.add(task)
+
+    # Auto-dismiss the feed item — it's been acted on
+    if feed_item:
+        feed_item.is_dismissed = True
+
     await db.flush()
     return task
 

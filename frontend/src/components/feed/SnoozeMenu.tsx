@@ -1,9 +1,11 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Clock } from "lucide-react";
 
 interface SnoozeMenuProps {
   onSnooze: (until: string) => void;
   onClose: () => void;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
 }
 
 function getSnoozePresets(): { label: string; until: string }[] {
@@ -37,26 +39,48 @@ function getSnoozePresets(): { label: string; until: string }[] {
 
 /**
  * Snooze popover with 4 fixed preset options.
+ * Rendered via portal to document.body with fixed positioning so it
+ * won't be clipped by overflow:auto on the feed panel.
  */
-export function SnoozeMenu({ onSnooze, onClose }: SnoozeMenuProps) {
+export function SnoozeMenu({ onSnooze, onClose, anchorRef }: SnoozeMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const presets = getSnoozePresets();
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Close on click outside
+  // Compute position from anchor button's bounding rect
+  useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+  }, [anchorRef]);
+
+  // Close on click outside (ignore clicks on the anchor button itself)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        ref.current &&
+        !ref.current.contains(e.target as Node) &&
+        anchorRef.current &&
+        !anchorRef.current.contains(e.target as Node)
+      ) {
         onClose();
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
+  }, [onClose, anchorRef]);
 
-  return (
+  if (!pos) return null;
+
+  return createPortal(
     <div
       ref={ref}
-      className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded border border-border bg-dominant shadow-lg"
+      className="fixed z-50 min-w-[160px] rounded border border-border bg-dominant shadow-lg"
+      style={{ top: pos.top, left: pos.left }}
     >
       <div className="flex items-center gap-1.5 border-b border-border px-2.5 py-1.5">
         <Clock size={12} className="text-muted" />
@@ -74,6 +98,7 @@ export function SnoozeMenu({ onSnooze, onClose }: SnoozeMenuProps) {
           {preset.label}
         </button>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }

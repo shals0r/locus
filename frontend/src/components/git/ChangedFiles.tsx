@@ -1,4 +1,5 @@
 import { useChangedFiles } from "../../hooks/useGitStatus";
+import { useSessionStore } from "../../stores/sessionStore";
 
 interface ChangedFilesProps {
   machineId: string;
@@ -13,6 +14,11 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   R: { label: "R", color: "text-warning" },
   C: { label: "C", color: "text-warning" },
   U: { label: "U", color: "text-error" },
+  modified: { label: "M", color: "text-accent" },
+  added: { label: "A", color: "text-success" },
+  deleted: { label: "D", color: "text-error" },
+  untracked: { label: "?", color: "text-muted" },
+  renamed: { label: "R", color: "text-warning" },
 };
 
 function getStatusDisplay(status: string) {
@@ -33,6 +39,7 @@ function splitPath(filePath: string): { dir: string; name: string } {
 
 export function ChangedFiles({ machineId, repoPath }: ChangedFilesProps) {
   const { data: files, isLoading } = useChangedFiles(machineId, repoPath);
+  const openDiffTab = useSessionStore((s) => s.openDiffTab);
 
   if (isLoading) {
     return (
@@ -64,13 +71,22 @@ export function ChangedFiles({ machineId, repoPath }: ChangedFilesProps) {
               key={file.path}
               className="flex w-full items-center gap-1.5 px-2 py-0.5 text-left hover:bg-hover/50 transition-colors"
               title={`${file.status} ${file.path}`}
+              onClick={() =>
+                openDiffTab({
+                  type: "file",
+                  machineId,
+                  repoPath,
+                  filePath: file.path,
+                  label: name,
+                })
+              }
             >
               <span
                 className={`w-3 shrink-0 text-center text-[10px] font-mono font-bold ${color}`}
               >
                 {label}
               </span>
-              <span className="min-w-0 truncate text-[10px]">
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px]">
                 <span className="text-muted">{dir}</span>
                 <span className="text-primary-text">{name}</span>
               </span>

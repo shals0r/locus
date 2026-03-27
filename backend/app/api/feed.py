@@ -124,7 +124,7 @@ async def ingest_webhook(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/", response_model=FeedListResponse)
+@router.get("", response_model=FeedListResponse)
 async def list_feed(
     tier: str | None = Query(None),
     include_dismissed: bool = Query(False),

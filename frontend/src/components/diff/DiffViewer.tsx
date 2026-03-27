@@ -22,6 +22,18 @@ function getFileExtension(path: string): string {
   return parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
 }
 
+/**
+ * Extract hunk content from a single-file git diff output.
+ * Strips the file-level header lines (diff --git, index, ---, +++)
+ * and returns only the hunk content (starting from @@).
+ */
+function extractHunks(diffText: string): string {
+  const lines = diffText.split("\n");
+  const hunkStart = lines.findIndex((l) => l.startsWith("@@"));
+  if (hunkStart === -1) return "";
+  return lines.slice(hunkStart).join("\n");
+}
+
 export function DiffViewer({
   machineId,
   repoPath,
@@ -74,24 +86,31 @@ export function DiffViewer({
   const diffFile = useMemo(() => {
     if (!diffText) return null;
 
+    const hunks = extractHunks(diffText);
+    if (!hunks) return null;
+
     const lang = filePath ? getFileExtension(filePath) : "";
     const fileName = filePath || commitSha || "diff";
 
-    const instance = new DiffFile(
-      fileName,
-      "",
-      fileName,
-      "",
-      [diffText],
-      lang,
-      lang,
-    );
-    instance.initTheme("dark");
-    instance.initRaw();
-    instance.buildSplitDiffLines();
-    instance.buildUnifiedDiffLines();
-
-    return instance;
+    try {
+      const instance = new DiffFile(
+        fileName,
+        "",
+        fileName,
+        "",
+        [hunks],
+        lang,
+        lang,
+      );
+      instance.initTheme("dark");
+      instance.initRaw();
+      instance.buildSplitDiffLines();
+      instance.buildUnifiedDiffLines();
+      return instance;
+    } catch (e) {
+      console.error("DiffFile parse error:", e);
+      return null;
+    }
   }, [diffText, filePath, commitSha]);
 
   if (!isFileDiff && !isCommitDiff) {
@@ -124,10 +143,20 @@ export function DiffViewer({
     );
   }
 
-  if (!diffText || !diffFile) {
+  if (!diffText) {
     return (
       <div className="flex h-full items-center justify-center text-muted text-sm">
         No changes
+      </div>
+    );
+  }
+
+  if (!diffFile) {
+    return (
+      <div className="flex h-full overflow-auto p-4">
+        <pre className="text-xs text-muted whitespace-pre-wrap font-mono">
+          {diffText}
+        </pre>
       </div>
     );
   }

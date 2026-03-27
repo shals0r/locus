@@ -45,6 +45,21 @@ export function useTransitionTask() {
 }
 
 /**
+ * Update an existing task's title or context.
+ * PATCH /api/tasks/{id}
+ */
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; title?: string; context?: string }) =>
+      apiPatch<Task>(`/api/tasks/${id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+/**
  * Create a new task.
  * POST /api/tasks/
  */
