@@ -1,9 +1,6 @@
-import { useMemo } from "react";
-import { DiffView, DiffModeEnum, DiffFile } from "@git-diff-view/react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { apiGet } from "../../hooks/useApi";
-import "@git-diff-view/react/styles/diff-view.css";
 
 interface DiffViewerProps {
   machineId: string;
@@ -14,24 +11,40 @@ interface DiffViewerProps {
 
 interface DiffResponse {
   diff: string;
-  file_path?: string;
 }
 
-function getFileExtension(path: string): string {
-  const parts = path.split(".");
-  return parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
-}
+function DiffLine({ line, lineNum }: { line: string; lineNum: number }) {
+  let bg = "";
+  let textColor = "text-gray-300";
+  let marker = " ";
 
-/**
- * Extract hunk content from a single-file git diff output.
- * Strips the file-level header lines (diff --git, index, ---, +++)
- * and returns only the hunk content (starting from @@).
- */
-function extractHunks(diffText: string): string {
-  const lines = diffText.split("\n");
-  const hunkStart = lines.findIndex((l) => l.startsWith("@@"));
-  if (hunkStart === -1) return "";
-  return lines.slice(hunkStart).join("\n");
+  if (line.startsWith("@@")) {
+    bg = "bg-blue-900/30";
+    textColor = "text-blue-400";
+    marker = " ";
+  } else if (line.startsWith("+")) {
+    bg = "bg-green-900/25";
+    textColor = "text-green-400";
+    marker = "+";
+  } else if (line.startsWith("-")) {
+    bg = "bg-red-900/25";
+    textColor = "text-red-400";
+    marker = "-";
+  }
+
+  return (
+    <div className={`flex ${bg} hover:brightness-125`}>
+      <span className="w-10 shrink-0 select-none text-right pr-2 text-[11px] text-gray-600">
+        {lineNum}
+      </span>
+      <span className="w-4 shrink-0 select-none text-center text-[11px] text-gray-500">
+        {marker}
+      </span>
+      <span className={`flex-1 text-[13px] whitespace-pre ${textColor}`}>
+        {line.startsWith("+") || line.startsWith("-") ? line.slice(1) : line}
+      </span>
+    </div>
+  );
 }
 
 export function DiffViewer({
@@ -89,36 +102,6 @@ export function DiffViewer({
     staleTime: 10_000,
   });
 
-  const diffFile = useMemo(() => {
-    if (!diffText) return null;
-
-    const hunks = extractHunks(diffText);
-    if (!hunks) return null;
-
-    const lang = filePath ? getFileExtension(filePath) : "";
-    const fileName = filePath || commitSha || "diff";
-
-    try {
-      const instance = new DiffFile(
-        fileName,
-        "",
-        fileName,
-        "",
-        [hunks],
-        lang,
-        lang,
-      );
-      instance.initTheme("dark");
-      instance.initRaw();
-      instance.buildSplitDiffLines();
-      instance.buildUnifiedDiffLines();
-      return instance;
-    } catch (e) {
-      console.error("DiffFile parse error:", e);
-      return null;
-    }
-  }, [diffText, filePath, commitSha]);
-
   if (!isFileDiff && !isCommitDiff) {
     return (
       <div className="flex h-full items-center justify-center text-muted text-sm">
@@ -157,26 +140,13 @@ export function DiffViewer({
     );
   }
 
-  if (!diffFile) {
-    return (
-      <div className="flex h-full overflow-auto p-4">
-        <pre className="text-xs text-muted whitespace-pre-wrap font-mono">
-          {diffText}
-        </pre>
-      </div>
-    );
-  }
+  const lines = diffText.split("\n");
 
   return (
-    <div className="h-full overflow-auto diff-viewer-wrapper">
-      <DiffView
-        diffFile={diffFile}
-        diffViewMode={DiffModeEnum.Unified}
-        diffViewTheme="dark"
-        diffViewHighlight={true}
-        diffViewWrap={false}
-        diffViewFontSize={13}
-      />
+    <div className="h-full overflow-auto font-mono" style={{ background: "#1a1b26" }}>
+      {lines.map((line, i) => (
+        <DiffLine key={i} line={line} lineNum={i + 1} />
+      ))}
     </div>
   );
 }
