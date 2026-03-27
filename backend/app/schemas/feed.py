@@ -1,6 +1,7 @@
 """Pydantic schemas for work feed ingest and CRUD."""
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,7 +22,7 @@ class IngestPayload(BaseModel):
 class FeedItemResponse(BaseModel):
     """Feed item as returned by the API."""
 
-    id: str
+    id: UUID
     source_type: str
     external_id: str
     title: str
