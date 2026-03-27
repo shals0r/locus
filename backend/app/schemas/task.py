@@ -1,6 +1,7 @@
 """Pydantic schemas for task CRUD and state transitions."""
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,6 +12,7 @@ class TaskCreate(BaseModel):
     title: str
     context: str | None = None
     tier: str
+    status: str = "queue"
     feed_item_id: str | None = None
     source_links: dict | None = None
 
@@ -18,8 +20,8 @@ class TaskCreate(BaseModel):
 class TaskResponse(BaseModel):
     """Task as returned by the API."""
 
-    id: str
-    feed_item_id: str | None = None
+    id: UUID
+    feed_item_id: UUID | None = None
     title: str
     context: str | None = None
     tier: str
