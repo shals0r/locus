@@ -54,10 +54,16 @@ export function DiffViewer({
         repo_path: repoPath,
         file_path: filePath!,
       });
+      // Try unstaged diff first, fall back to staged if empty
       const resp = await apiGet<DiffResponse>(
         `/api/git/diff?${params.toString()}`,
       );
-      return resp.diff;
+      if (resp.diff) return resp.diff;
+      params.set("staged", "true");
+      const staged = await apiGet<DiffResponse>(
+        `/api/git/diff?${params.toString()}`,
+      );
+      return staged.diff;
     } else if (isCommitDiff) {
       const params = new URLSearchParams({
         machine_id: machineId,

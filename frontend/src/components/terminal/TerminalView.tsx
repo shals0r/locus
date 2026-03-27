@@ -103,6 +103,10 @@ export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewPr
     };
 
     term.onData((data) => {
+      // Filter out Device Attributes responses — xterm.js answers DA queries
+      // from the remote shell, and the response gets echoed back as garbage
+      // text (e.g. "1;2c0;276;0c"). Drop them before they reach the WebSocket.
+      if (/^\x1b\[[\?>]?[\d;]*c/.test(data)) return;
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(encoder.encode(data));
       }

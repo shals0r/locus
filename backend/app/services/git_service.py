@@ -108,10 +108,16 @@ async def get_changed_files(machine_id: str, repo_path: str) -> list[dict]:
 
     files = []
     for line in output.strip().split("\n"):
-        if not line.strip():
+        stripped = line.rstrip()
+        if not stripped:
             continue
-        status_code = line[:2].strip()
-        filepath = line[3:]
+        # Porcelain format: XY PATH (positions 0-1 status, 2 space, 3+ path)
+        # SSH may strip leading space so parse robustly: split on first whitespace
+        parts = stripped.split(None, 1)
+        if len(parts) < 2:
+            continue
+        status_code = parts[0]
+        filepath = parts[1]
         files.append({
             "status": STATUS_MAP.get(status_code, status_code),
             "status_code": status_code,
@@ -204,7 +210,8 @@ async def list_branches(machine_id: str, repo_path: str) -> list[dict]:
         if not line:
             continue
         is_current = line.startswith("*")
-        name = line.lstrip("* ").strip()
+        # Strip leading markers: * (current), + (worktree), spaces
+        name = line.lstrip("*+ ").strip()
         if not name:
             continue
         branches.append({
