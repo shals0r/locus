@@ -107,7 +107,20 @@ Plans:
   4. User can approve or request changes on MRs/PRs from within Locus
   5. User can browse a file tree for any repo (local or remote), open files in a Monaco editor with syntax highlighting, edit, and save back to the machine
   6. User can open a file directly from a diff view to edit it, and see the diff update after saving
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Backend file service + file API + review/file schemas
+- [ ] 03-02-PLAN.md — Review provider abstraction (GitHub + GitLab) + AI review service
+- [ ] 03-03-PLAN.md — Unified tab system (terminal + diff + editor) + sidebar tabs (Git | Files | Search)
+- [ ] 03-04-PLAN.md — Replace DiffViewer with @git-diff-view/react (split/unified, syntax highlight, virtual scroll, file list)
+- [ ] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
+- [ ] 03-06-PLAN.md — AI review trigger + annotations (gutter icons, side panel, batch post, review submit)
+- [ ] 03-07-PLAN.md — Monaco editor + file tree + file operations + editor tabs
+- [ ] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
+- [ ] 03-09-PLAN.md — Cross-file search + breadcrumb navigation + command palette extensions + diff-to-editor
+- [ ] 03-10-PLAN.md — Visual and functional verification checkpoint
+
 **UI hint**: yes
 
 ### Phase 4: Integrations Runner & Skills
@@ -148,6 +161,6 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 | 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
 | 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
 | 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
-| 3. Code Review, Diff & Editing | 0/? | Not started | - |
+| 3. Code Review, Diff & Editing | 0/10 | Planned | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
 | 5. Host Agent | 0/? | Not started | - |
