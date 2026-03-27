@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Infrastructure & Terminal Core** - Docker stack, auth, SSH terminals, machine management, and three-panel layout shell
 - [x] **Phase 1.1: Local Machine Support** (INSERTED) - Local terminals, repos, and Claude sessions without SSH — "This Machine" as first-class citizen
-- [ ] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar, unified work feed with ingest API, task board with promote flows, context-aware working sessions, command palette
+- [x] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar, unified work feed with ingest API, task board with promote flows, context-aware working sessions, command palette
 - [ ] **Phase 3: Code Review, Diff & Editing** - Local and MR diff viewing, AI-assisted review, Monaco-based code editor with file tree and save-back
 - [ ] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
 - [ ] **Phase 5: Host Agent** - Lightweight host-side agent enabling Docker-to-host terminal access, session persistence, and Claude detection without SSH
@@ -92,7 +92,7 @@ Plans:
 - [x] 02-08-PLAN.md — Task board UI + Start flow + Working session context strip
 - [x] 02-09-PLAN.md — Diff viewer integration (center panel)
 - [x] 02-10-PLAN.md — Command palette (cmdk)
-- [ ] 02-11-PLAN.md — Visual and functional verification checkpoint
+- [x] 02-11-PLAN.md — Visual and functional verification checkpoint
 
 **UI hint**: yes
 
@@ -147,7 +147,7 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
 | 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
-| 2. Repository Management & Work Feed | 0/11 | Planned | - |
+| 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
 | 3. Code Review, Diff & Editing | 0/? | Not started | - |
 | 4. Integrations Runner & Skills | 0/? | Not started | - |
 | 5. Host Agent | 0/? | Not started | - |

@@ -17,23 +17,23 @@
 
 ### Git & Repository Management
 
-- [ ] **GIT-01**: User can see the current branch for every repo across all machines
-- [ ] **GIT-02**: User can see clean/dirty state and ahead/behind counts per repo
-- [ ] **GIT-03**: User can fetch, pull, and push from the UI per repo
-- [ ] **GIT-04**: User can checkout existing branches or create new branches from the UI
-- [ ] **GIT-05**: User can see current GSD phase and progress state per repo in the sidebar
-- [ ] **GIT-06**: User can trigger the next GSD action (plan, execute, verify, transition) via one-click buttons
+- [x] **GIT-01**: User can see the current branch for every repo across all machines
+- [x] **GIT-02**: User can see clean/dirty state and ahead/behind counts per repo
+- [x] **GIT-03**: User can fetch, pull, and push from the UI per repo
+- [x] **GIT-04**: User can checkout existing branches or create new branches from the UI
+- [x] **GIT-05**: User can see current GSD phase and progress state per repo in the sidebar
+- [x] **GIT-06**: User can trigger the next GSD action (plan, execute, verify, transition) via one-click buttons
 
 ### Work Feed
 
-- [ ] **FEED-01**: User sees a unified feed of work items from all connected sources in a single panel
-- [ ] **FEED-02**: Feed items are categorized into urgency tiers (Now/Respond/Review/Prep/Follow up)
-- [ ] **FEED-03**: Each feed item links back to its source system (Jira, GitLab, GitHub, etc.)
-- [ ] **FEED-04**: User can mark feed items as read, dismiss them, or snooze them for later
-- [ ] **FEED-05**: Feed items are auto-prioritized based on time sensitivity, mention rules, and source-defined categorization
-- [ ] **FEED-06**: GSD events (phase transitions, discussion needs, verification results) appear as feed items
-- [ ] **FEED-07**: User can submit meeting transcripts via API endpoint and receive auto-extracted action items in the feed
-- [ ] **FEED-08**: Integration workers define their own categorization and mention-detection rules via the ingestion protocol, not hardcoded per source
+- [x] **FEED-01**: User sees a unified feed of work items from all connected sources in a single panel
+- [x] **FEED-02**: Feed items are categorized into urgency tiers (Now/Respond/Review/Prep/Follow up)
+- [x] **FEED-03**: Each feed item links back to its source system (Jira, GitLab, GitHub, etc.)
+- [x] **FEED-04**: User can mark feed items as read, dismiss them, or snooze them for later
+- [x] **FEED-05**: Feed items are auto-prioritized based on time sensitivity, mention rules, and source-defined categorization
+- [x] **FEED-06**: GSD events (phase transitions, discussion needs, verification results) appear as feed items
+- [x] **FEED-07**: User can submit meeting transcripts via API endpoint and receive auto-extracted action items in the feed
+- [x] **FEED-08**: Integration workers define their own categorization and mention-detection rules via the ingestion protocol, not hardcoded per source
 
 ### Code Review & Diff
 
@@ -45,7 +45,7 @@
 
 ### Integrations
 
-- [ ] **INTG-01**: Locus exposes a universal ingest API (`POST /api/feed/ingest`) with a documented payload schema that any service can post to
+- [x] **INTG-01**: Locus exposes a universal ingest API (`POST /api/feed/ingest`) with a documented payload schema that any service can post to
 - [ ] **INTG-02**: User can interactively build a new integration worker with Claude via the Integrator skill (describe what to connect, test API communication, deploy worker)
 - [ ] **INTG-03**: New integration workers can be hot-deployed to the integrations runner container without restarting it
 - [ ] **INTG-04**: Integration workers run with a process supervisor that monitors health and restarts crashed workers
@@ -53,8 +53,8 @@
 
 ### UI & Navigation
 
-- [ ] **UI-01**: User can open a command palette to fuzzy-search and jump to any repo, machine, ticket, or integration
-- [ ] **UI-02**: Every primary action in Locus has a keyboard shortcut
+- [x] **UI-01**: User can open a command palette to fuzzy-search and jump to any repo, machine, ticket, or integration
+- [x] **UI-02**: Every primary action in Locus has a keyboard shortcut
 - [x] **UI-03**: User can collapse, expand, and resize the three main panels (sidebar, center, feed) independently
 - [x] **UI-04**: User can enter focus mode by collapsing panels to work in full-width terminal or full-width feed
 
