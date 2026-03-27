@@ -6,7 +6,7 @@ import type { FeedItem } from "../types";
  * Fetch feed items, optionally filtered by tier.
  */
 export function useFeedItems(tier?: string) {
-  const path = tier ? `/api/feed/?tier=${encodeURIComponent(tier)}` : "/api/feed/";
+  const path = tier ? `/api/feed?tier=${encodeURIComponent(tier)}` : "/api/feed";
   return useQuery<FeedItem[]>({
     queryKey: tier ? ["feed", tier] : ["feed"],
     queryFn: async () => {

@@ -87,6 +87,8 @@ export function FeedCard({ item }: FeedCardProps) {
     if (!item.is_read) {
       markReadMutation.mutate(item.id);
     }
+    // Toggle actions on tap (touch devices have no hover)
+    setIsHovered((prev) => !prev);
   }, [item.id, item.is_read, markReadMutation]);
 
   const handleQuickPromote = useCallback(

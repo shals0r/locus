@@ -8,8 +8,8 @@ import { useTaskStore } from "../stores/taskStore";
  */
 export function useTasks(status?: string) {
   const path = status
-    ? `/api/tasks/?status=${encodeURIComponent(status)}`
-    : "/api/tasks/";
+    ? `/api/tasks?status=${encodeURIComponent(status)}`
+    : "/api/tasks";
   return useQuery<Task[]>({
     queryKey: status ? ["tasks", status] : ["tasks"],
     queryFn: () => apiGet<Task[]>(path),
@@ -52,7 +52,7 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: { title: string; context?: string; tier?: string }) =>
-      apiPost<Task>("/api/tasks/", body),
+      apiPost<Task>("/api/tasks", body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
