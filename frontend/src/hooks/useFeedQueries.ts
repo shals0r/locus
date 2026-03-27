@@ -9,7 +9,10 @@ export function useFeedItems(tier?: string) {
   const path = tier ? `/api/feed/?tier=${encodeURIComponent(tier)}` : "/api/feed/";
   return useQuery<FeedItem[]>({
     queryKey: tier ? ["feed", tier] : ["feed"],
-    queryFn: () => apiGet<FeedItem[]>(path),
+    queryFn: async () => {
+      const res = await apiGet<{ items: FeedItem[]; total: number }>(path);
+      return res.items;
+    },
   });
 }
 
