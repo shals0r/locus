@@ -69,7 +69,7 @@ export function CenterPanel() {
           setActiveSession(first.id);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error("Failed to fetch sessions:", err));
   }, [activeMachineId, machineNeedsSetup, setSessions, setActiveSession, activeSessionId]);
 
   const machineSessions = sessions.filter(

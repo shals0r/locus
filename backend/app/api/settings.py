@@ -331,17 +331,19 @@ async def push_claude_code_to_machine(
 
         if auth_type == "api_key":
             api_key = decrypted.get("api_key", "")
-            # Write API key to environment file
+            # Write API key to environment file (heredoc avoids shell injection)
             await conn.run(
-                f'echo "export ANTHROPIC_API_KEY={api_key}" > ~/.claude/env',
+                f"cat > ~/.claude/env << 'LOCUS_ENV_EOF'\nexport ANTHROPIC_API_KEY={api_key}\nLOCUS_ENV_EOF",
                 check=True,
             )
             await conn.run("chmod 600 ~/.claude/env", check=True)
         elif auth_type == "oauth":
             token = decrypted.get("token", "")
-            # Write OAuth token
+            # Write OAuth token (heredoc avoids shell injection)
+            import json as json_mod
+            cred_json = json_mod.dumps({"token": token})
             await conn.run(
-                f'echo \'{{"token": "{token}"}}\' > ~/.claude/credentials.json',
+                f"cat > ~/.claude/credentials.json << 'LOCUS_CRED_EOF'\n{cred_json}\nLOCUS_CRED_EOF",
                 check=True,
             )
             await conn.run("chmod 600 ~/.claude/credentials.json", check=True)

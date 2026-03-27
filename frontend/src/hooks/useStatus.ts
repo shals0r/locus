@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { getWsUrl } from "../api/client";
+import { useCallback, useState } from "react";
 import { useMachineStore } from "../stores/machineStore";
 import { useClaudeSessionStore } from "../stores/claudeSessionStore";
 import { useSessionStore } from "../stores/sessionStore";
+import { useWebSocket } from "./useWebSocket";
+import { getWsUrl } from "../api/client";
 import type { ClaudeSession, MachineStatus } from "../types";
 
 interface ServiceStatus {
@@ -13,6 +14,7 @@ interface ServiceStatus {
 /**
  * Hook that connects to /ws/status for live machine and Claude Code updates.
  *
+ * Uses useWebSocket for automatic reconnection with exponential backoff.
  * Updates machineStore with machine statuses and claudeSessionStore with
  * Claude Code session data. Returns derived service status for top bar.
  */
@@ -26,30 +28,22 @@ export function useStatus() {
     database: "connected",
     claude_code: "unconfigured",
   });
-  const wsRef = useRef<WebSocket | null>(null);
 
-  useEffect(() => {
-    const url = getWsUrl("/ws/status");
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
+  const onMessage = useCallback(
+    (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data);
 
         switch (msg.type) {
           case "initial": {
-            // Set machine statuses
             if (msg.machines) {
               for (const [id, status] of Object.entries(msg.machines)) {
                 setMachineStatus(id, status as MachineStatus);
               }
             }
-            // Set Claude sessions
             if (msg.claude_sessions) {
               setSessions(msg.claude_sessions as ClaudeSession[]);
             }
-            // Set service status
             if (msg.services) {
               setServiceStatus(msg.services);
             }
@@ -83,17 +77,11 @@ export function useStatus() {
       } catch {
         // Ignore malformed messages
       }
-    };
+    },
+    [setMachineStatus, setSessions, updateSessionDisplayName],
+  );
 
-    return () => {
-      ws.onmessage = null;
-      ws.onopen = null;
-      ws.onclose = null;
-      ws.onerror = null;
-      ws.close();
-      wsRef.current = null;
-    };
-  }, [setMachineStatus, setSessions, updateSessionDisplayName]);
+  useWebSocket(getWsUrl("/ws/status"), { onMessage });
 
   return { serviceStatus };
 }

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -65,12 +66,13 @@ class SessionProcess:
                 if ws is not None:
                     try:
                         await ws.send_bytes(data)
-                    except Exception:
+                    except Exception as exc:
+                        logger.warning("Terminal send failed: %s", exc)
                         self._ws = None
         except asyncio.CancelledError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Terminal read loop error: %s", exc)
         self._alive = False
 
     def attach(self, ws: WebSocket) -> None:
@@ -85,21 +87,27 @@ class SessionProcess:
         """Return buffered output for replay on reconnect."""
         return bytes(self._scrollback)
 
+    # Device Attributes response pattern — xterm.js answers DA queries from
+    # the remote shell and the response gets echoed back as garbage text.
+    _DA_RESPONSE = re.compile(rb"^\x1b\[[\?>]?[\d;]*c")
+
     def write(self, data: bytes) -> None:
-        """Write to SSH stdin."""
+        """Write to SSH stdin, filtering DA responses that cause garbage."""
         if self._alive:
+            if self._DA_RESPONSE.match(data):
+                return
             try:
                 self.process.stdin.write(data)  # type: ignore[union-attr]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Terminal stdin write failed: %s", exc)
 
     def resize(self, cols: int, rows: int) -> None:
         """Resize the terminal."""
         if self._alive:
             try:
                 self.process.channel.set_terminal_size(cols, rows)  # type: ignore[union-attr]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Terminal resize failed: %s", exc)
 
     @property
     def alive(self) -> bool:
@@ -117,8 +125,8 @@ class SessionProcess:
         try:
             self.process.close()  # type: ignore[union-attr]
             await asyncio.wait_for(self.process.wait_closed(), timeout=2.0)  # type: ignore[union-attr]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Terminal process close failed: %s", exc)
 
 
 # Global pool: one process per session, survives WS reconnects
@@ -311,8 +319,8 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
     if scrollback:
         try:
             await websocket.send_bytes(scrollback)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Terminal scrollback replay failed: %s", exc)
 
     try:
         # Read from WebSocket → SSH stdin
@@ -332,8 +340,8 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
                     pass
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Terminal WS read loop error: %s", exc)
     finally:
         sp.detach()
         logger.info("TERMINAL: WS detached session=%s (process stays alive)", session_id)

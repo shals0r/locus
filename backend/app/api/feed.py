@@ -113,8 +113,8 @@ async def ingest_webhook(
             "type": "new_item",
             "item_id": str(item.id),
         })
-    except Exception:
-        pass  # WebSocket broadcast is best-effort
+    except Exception as exc:
+        logger.warning("Feed broadcast failed (best-effort): %s", exc)
 
     return {"status": "ok", "item_id": str(item.id)}
 
@@ -174,8 +174,8 @@ async def patch_feed_item(
             "type": "item_updated",
             "item_id": str(item.id),
         })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Feed broadcast failed (best-effort): %s", exc)
 
     return FeedItemResponse.model_validate(item)
 
@@ -214,8 +214,8 @@ async def dismiss_feed_item(
             "type": "item_dismissed",
             "item_id": str(item.id),
         })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Feed broadcast failed (best-effort): %s", exc)
 
     return FeedItemResponse.model_validate(item)
 
@@ -282,8 +282,8 @@ async def ingest_transcript(
                         "type": "new_item",
                         "item_id": str(item.id),
                     })
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Feed broadcast failed (best-effort): %s", exc)
 
             return {
                 "status": "ok",

@@ -36,7 +36,7 @@ export const useMachineStore = create<MachineState>((set) => ({
     }));
   },
   setActiveMachine: (id) => set({ activeMachineId: id, claudeViewActive: false }),
-  setClaudeViewActive: (active) => set({ claudeViewActive: active, activeMachineId: active ? null : null }),
+  setClaudeViewActive: (active) => set((s) => ({ claudeViewActive: active, activeMachineId: active ? null : s.activeMachineId })),
   setMachineStatus: (id, status) =>
     set((s) => ({
       machineStatuses: { ...s.machineStatuses, [id]: status },

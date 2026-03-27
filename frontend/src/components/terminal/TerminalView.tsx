@@ -103,10 +103,6 @@ export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewPr
     };
 
     term.onData((data) => {
-      // Filter out Device Attributes responses — xterm.js answers DA queries
-      // from the remote shell, and the response gets echoed back as garbage
-      // text (e.g. "1;2c0;276;0c"). Drop them before they reach the WebSocket.
-      if (/^\x1b\[[\?>]?[\d;]*c/.test(data)) return;
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(encoder.encode(data));
       }
@@ -195,10 +191,11 @@ export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewPr
     });
 
     // Right-click → paste
-    container.addEventListener("contextmenu", (e) => {
+    const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       pasteFromClipboard();
-    });
+    };
+    container.addEventListener("contextmenu", handleContextMenu);
 
     term.onResize(({ cols, rows }) => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -219,6 +216,7 @@ export function TerminalView({ sessionId, machineId, isVisible }: TerminalViewPr
       initDone.current = false;
       if (fitTimer) clearTimeout(fitTimer);
       observer.disconnect();
+      container.removeEventListener("contextmenu", handleContextMenu);
       ws.onopen = null;
       ws.onclose = null;
       ws.onerror = null;

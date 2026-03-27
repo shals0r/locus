@@ -108,22 +108,15 @@ async def feed_websocket(websocket: WebSocket) -> None:
 async def _build_feed_snapshot() -> list[dict]:
     """Build initial snapshot of recent unread feed items.
 
-    Returns last 50 items that are not dismissed and not currently snoozed,
-    ordered by tier priority then recency.
+    Returns last 50 non-dismissed items (including snoozed) to match REST API.
     """
     from app.services.feed_service import TIER_PRIORITY
-
-    now = datetime.now(timezone.utc)
 
     try:
         async with async_session_factory() as db:
             stmt = (
                 select(FeedItem)
                 .where(FeedItem.is_dismissed.is_(False))
-                .where(
-                    (FeedItem.snoozed_until.is_(None))
-                    | (FeedItem.snoozed_until <= now)
-                )
             )
 
             # Order by tier priority then recency
@@ -147,8 +140,12 @@ async def _build_feed_snapshot() -> list[dict]:
                     "url": item.url,
                     "tier": item.tier,
                     "is_read": item.is_read,
+                    "is_dismissed": item.is_dismissed,
+                    "raw_payload": item.raw_payload,
                     "source_icon": item.source_icon,
+                    "snoozed_until": item.snoozed_until.isoformat() if item.snoozed_until else None,
                     "created_at": item.created_at.isoformat() if item.created_at else None,
+                    "updated_at": item.updated_at.isoformat() if item.updated_at else None,
                 }
                 for item in items
             ]
