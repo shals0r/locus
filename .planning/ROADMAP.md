@@ -136,7 +136,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — DB model extension + Phase 4 schemas + WorkerSupervisor service + mention detection migration + Docker config
 - [x] 04-02-PLAN.md — Built-in adapter migration to standalone scripts + worker management API + log WebSocket + app lifecycle
-- [ ] 04-03-PLAN.md — Worker management frontend (stores, cards, log panel, quick config) in Settings page
+- [x] 04-03-PLAN.md — Worker management frontend (stores, cards, log panel, quick config) in Settings page
 - [x] 04-04-PLAN.md — Skill discovery backend + skill API + SkillBar frontend in sidebar
 - [ ] 04-05-PLAN.md — Integrator backend service (Claude Code CLI routing) + Integrator chat panel frontend
 - [ ] 04-06-PLAN.md — Visual and functional verification checkpoint
