@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle, X, FileCode, GitCommitHorizontal } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
@@ -25,8 +25,11 @@ export function CenterPanel() {
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const activeTask = useTaskStore((s) => s.activeTask);
   const setActiveTask = useTaskStore((s) => s.setActiveTask);
-  const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
-  const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
+
+  // Unified tab system
+  const tabs = useSessionStore((s) => s.tabs);
+  const activeTabId = useSessionStore((s) => s.activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId);
 
   // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
@@ -76,6 +79,76 @@ export function CenterPanel() {
     (s) => s.machine_id === activeMachineId,
   );
 
+  // Determine what content to render based on active tab type
+  function renderContent() {
+    if (!activeTab) {
+      // No active tab - show empty states
+      if (!activeMachineId) {
+        return (
+          <div className="flex absolute inset-0 items-center justify-center">
+            <div className="text-center">
+              <h3 className="text-sm font-semibold text-primary-text">
+                No active sessions
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                Select a machine from the sidebar, or add a new one to open a
+                terminal.
+              </p>
+            </div>
+          </div>
+        );
+      }
+      if (machineSessions.length === 0) {
+        return (
+          <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
+            No session selected. Click &quot;+&quot; to start a terminal session.
+          </div>
+        );
+      }
+      return null;
+    }
+
+    switch (activeTab.type) {
+      case "diff":
+        if (activeTab.diffData) {
+          return (
+            <div className="absolute inset-0">
+              <DiffViewer
+                machineId={activeTab.diffData.machineId}
+                repoPath={activeTab.diffData.repoPath}
+                filePath={activeTab.diffData.filePath}
+                commitSha={activeTab.diffData.commitSha}
+              />
+            </div>
+          );
+        }
+        return null;
+
+      case "editor":
+        if (activeTab.editorData) {
+          return (
+            <div className="flex absolute inset-0 items-center justify-center text-muted text-sm">
+              <div className="text-center">
+                <p className="font-medium text-primary-text">
+                  Editor: {activeTab.editorData.filePath}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Monaco editor coming in Plan 07
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return null;
+
+      case "terminal":
+      default:
+        // Terminal tabs: render nothing here, terminals are rendered below
+        // (they stay mounted for all machine sessions to preserve state)
+        return null;
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <MachineTabBar />
@@ -124,66 +197,27 @@ export function CenterPanel() {
         <>
           {activeTask && <ContextStrip />}
           <SessionTabBar />
-          {activeDiffTab && (
-            <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
-              {activeDiffTab.type === "file" ? (
-                <FileCode size={12} className="text-accent shrink-0" />
-              ) : (
-                <GitCommitHorizontal size={12} className="text-accent shrink-0" />
-              )}
-              <span className="text-xs font-medium text-accent truncate">
-                {activeDiffTab.label}
-              </span>
-              <button
-                onClick={closeDiffTab}
-                className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
-                aria-label="Close diff tab"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
           <div className="relative flex-1 overflow-hidden">
-            {activeDiffTab && (
-              <div className="absolute inset-0">
-                <DiffViewer
-                  machineId={activeDiffTab.machineId}
-                  repoPath={activeDiffTab.repoPath}
-                  filePath={activeDiffTab.filePath}
-                  commitSha={activeDiffTab.commitSha}
-                />
-              </div>
-            )}
-            {!activeDiffTab && !activeMachineId && (
-              <div className="flex absolute inset-0 items-center justify-center">
-                <div className="text-center">
-                  <h3 className="text-sm font-semibold text-primary-text">
-                    No active sessions
-                  </h3>
-                  <p className="mt-1 text-xs text-muted">
-                    Select a machine from the sidebar, or add a new one to open a
-                    terminal.
-                  </p>
-                </div>
-              </div>
-            )}
-            {!activeDiffTab && activeMachineId && machineSessions.length === 0 && (
-              <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
-                No session selected. Click &quot;+&quot; to start a terminal session.
-              </div>
-            )}
+            {renderContent()}
+            {/* Keep all terminal views mounted (for state preservation) but only show the active one */}
             {machineSessions.map((s) => {
-              const active = s.id === activeSessionId && !activeDiffTab;
+              const isActiveTerminal =
+                activeTab?.type === "terminal" &&
+                activeTab.terminalData?.sessionId === s.id;
               return (
                 <div
                   key={s.id}
                   className="absolute inset-0"
-                  style={active ? undefined : { transform: "translateX(-200%)", pointerEvents: "none" }}
+                  style={
+                    isActiveTerminal
+                      ? undefined
+                      : { transform: "translateX(-200%)", pointerEvents: "none" }
+                  }
                 >
                   <TerminalView
                     sessionId={s.id}
                     machineId={s.machine_id}
-                    isVisible={active}
+                    isVisible={isActiveTerminal}
                   />
                 </div>
               );
