@@ -1,6 +1,7 @@
 import { MachineSettings } from "./MachineSettings";
 import { CredentialSettings } from "./CredentialSettings";
 import { ClaudeCodeSettings } from "./ClaudeCodeSettings";
+import { IntegrationSettings } from "./IntegrationSettings";
 
 export function SettingsPage() {
   return (
@@ -32,6 +33,11 @@ export function SettingsPage() {
             Claude Code
           </h2>
           <ClaudeCodeSettings />
+        </section>
+
+        {/* Integrations section */}
+        <section className="rounded-lg border border-border bg-secondary p-6">
+          <IntegrationSettings />
         </section>
       </div>
     </div>
