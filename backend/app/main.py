@@ -66,6 +66,50 @@ async def lifespan(app: FastAPI):
             ))
             logger.info("Migration complete: terminal_sessions.machine_id is now VARCHAR(255)")
 
+    # Migrate integration_sources for Phase 4: drop unique constraint on source_type,
+    # add new worker management columns
+    async with engine.begin() as mig_conn2:
+        # Check if new columns exist yet
+        col_check = await mig_conn2.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'integration_sources' AND column_name = 'worker_status'"
+        ))
+        if not col_check.first():
+            logger.info("Migrating integration_sources for Phase 4 worker management...")
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "DROP CONSTRAINT IF EXISTS integration_sources_source_type_key"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS name VARCHAR(255) DEFAULT ''"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS worker_script_path VARCHAR(500)"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS worker_status VARCHAR(20) DEFAULT 'stopped'"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS failure_count INTEGER DEFAULT 0"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS total_items_ingested INTEGER DEFAULT 0"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS worker_pid INTEGER"
+            ))
+            await mig_conn2.execute(text(
+                "ALTER TABLE integration_sources "
+                "ADD COLUMN IF NOT EXISTS is_builtin BOOLEAN DEFAULT FALSE"
+            ))
+            logger.info("Migration complete: integration_sources updated for Phase 4")
+
     # Initialize local machine connection
     await local_machine_manager.initialize()
     if local_machine_manager.in_docker:

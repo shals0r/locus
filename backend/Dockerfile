@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir requests beautifulsoup4 lxml feedparser google-api-python-client python-dateutil
+RUN mkdir -p /data/workers/_builtin /data/workers/user
 
 # Stage 3: Development (hot-reload)
 FROM base AS development

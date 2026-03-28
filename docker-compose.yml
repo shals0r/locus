@@ -38,6 +38,7 @@ services:
         condition: service_healthy
     volumes:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
+      - workerdata:/data/workers
 
   app-dev:
     build:
@@ -65,6 +66,7 @@ services:
     volumes:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
       - ./backend:/app
+      - workerdata:/data/workers
 
   frontend-dev:
     build:
@@ -85,3 +87,4 @@ services:
 
 volumes:
   pgdata:
+  workerdata:
