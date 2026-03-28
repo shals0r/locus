@@ -210,7 +210,8 @@ async def list_directory(machine_id: str, dir_path: str) -> list[dict]:
         if not clean_name:
             continue
 
-        entries.append({"name": clean_name, "is_dir": is_dir})
+        full_path = f"{dir_path.rstrip('/')}/{clean_name}"
+        entries.append({"name": clean_name, "path": full_path, "is_dir": is_dir})
 
     # Sort: directories first, then alphabetical within each group
     entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
@@ -218,14 +219,18 @@ async def list_directory(machine_id: str, dir_path: str) -> list[dict]:
 
 
 async def create_file(
-    machine_id: str, file_path: str, content: str = ""
+    machine_id: str, file_path: str, content: str = "", is_dir: bool = False
 ) -> None:
-    """Create a new file with optional content.
+    """Create a new file or directory.
 
     Creates parent directories if they don't exist.
     """
     safe_path = shlex.quote(file_path)
     parent_dir = shlex.quote(os.path.dirname(file_path))
+
+    if is_dir:
+        await run_command_on_machine(machine_id, f"mkdir -p {safe_path}")
+        return
 
     # Ensure parent directory exists
     if parent_dir and parent_dir != shlex.quote(""):

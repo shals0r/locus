@@ -31,7 +31,7 @@ interface FileSearchResponse {
 export function FileSearch() {
   const selectedMachineId = useRepoStore((s) => s.selectedMachineId);
   const selectedRepoPath = useRepoStore((s) => s.selectedRepoPath);
-  const openDiffTab = useSessionStore((s) => s.openDiffTab);
+  const openEditorTab = useSessionStore((s) => s.openEditorTab);
 
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -91,18 +91,9 @@ export function FileSearch() {
   const handleMatchClick = useCallback(
     (filePath: string, _lineNumber: number) => {
       if (!selectedMachineId || !selectedRepoPath) return;
-      // Open file in a diff/editor tab -- for now open as a file diff tab
-      // which shows the file content. A dedicated editor tab type can be
-      // added when the editor subsystem is built.
-      openDiffTab({
-        type: "file",
-        machineId: selectedMachineId,
-        repoPath: selectedRepoPath,
-        filePath,
-        label: filePath.split("/").pop() ?? filePath,
-      });
+      openEditorTab(selectedMachineId, selectedRepoPath, filePath);
     },
-    [selectedMachineId, selectedRepoPath, openDiffTab],
+    [selectedMachineId, selectedRepoPath, openEditorTab],
   );
 
   /** Focus the search input -- called externally via ref or command palette */

@@ -8,6 +8,7 @@ for local/remote support.
 
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -74,11 +75,12 @@ async def read_file_endpoint(
         content = await read_file(machine_id, file_path)
         stat_info = await file_stat(machine_id, file_path)
         language = detect_language(file_path)
+        mtime_iso = datetime.fromtimestamp(stat_info["mtime"], tz=timezone.utc).isoformat()
         return FileContent(
             content=content,
             language=language,
             size=stat_info["size"],
-            mtime=stat_info["mtime"],
+            mtime=mtime_iso,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -145,7 +147,7 @@ async def create_file_endpoint(
     """Create a new file with optional content."""
     await _validate_machine(body.machine_id, db)
     try:
-        await create_file(body.machine_id, body.file_path, body.content)
+        await create_file(body.machine_id, body.file_path, body.content, body.is_dir)
         return {"success": True, "path": body.file_path}
     except ConnectionError as exc:
         raise HTTPException(status_code=502, detail=f"SSH error: {exc}")
@@ -206,7 +208,8 @@ async def stat_file_endpoint(
     await _validate_machine(machine_id, db)
     try:
         stat_info = await file_stat(machine_id, file_path)
-        return FileStatResponse(**stat_info)
+        mtime_iso = datetime.fromtimestamp(stat_info["mtime"], tz=timezone.utc).isoformat()
+        return FileStatResponse(size=stat_info["size"], mtime=mtime_iso)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ConnectionError as exc:

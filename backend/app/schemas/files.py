@@ -24,14 +24,17 @@ class FileContent(BaseModel):
     content: str
     language: str
     size: int
-    mtime: int
+    mtime: str
 
 
 class DirectoryEntry(BaseModel):
     """A single entry in a directory listing."""
 
     name: str
+    path: str
     is_dir: bool
+    size: int | None = None
+    mtime: str | None = None
 
 
 class DirectoryListing(BaseModel):
@@ -42,11 +45,12 @@ class DirectoryListing(BaseModel):
 
 
 class FileCreateRequest(BaseModel):
-    """Request to create a new file."""
+    """Request to create a new file or directory."""
 
     machine_id: str
     file_path: str
     content: str = ""
+    is_dir: bool = False
 
 
 class FileRenameRequest(BaseModel):
@@ -68,4 +72,4 @@ class FileStatResponse(BaseModel):
     """File stat information (size and modification time)."""
 
     size: int
-    mtime: int
+    mtime: str

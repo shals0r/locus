@@ -162,7 +162,7 @@ export function SessionTabBar() {
 
   return (
     <>
-      <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
+      <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto overflow-y-hidden">
         {machineTabs.map((tab, localIndex) => {
           const isActive = tab.id === activeTabId;
           // For terminal tabs, check for Claude session status
