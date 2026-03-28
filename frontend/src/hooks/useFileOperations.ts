@@ -90,15 +90,48 @@ export function useWriteFile() {
 export function useListDirectory(
   machineId: string | null,
   dirPath: string | null,
+  depth: number = 1,
 ) {
+  const queryClient = useQueryClient();
+
   return useQuery<DirectoryListing>({
     queryKey: ["directory", machineId, dirPath],
-    queryFn: () =>
-      apiGet<DirectoryListing>(
-        `/api/files/list?machine_id=${encodeURIComponent(machineId!)}&dir_path=${encodeURIComponent(dirPath!)}`,
-      ),
+    queryFn: async () => {
+      const listing = await apiGet<DirectoryListing>(
+        `/api/files/list?machine_id=${encodeURIComponent(machineId!)}&dir_path=${encodeURIComponent(dirPath!)}&depth=${depth}`,
+      );
+
+      // When depth > 1, prime child directory caches from the flat response
+      if (depth > 1 && listing.entries.length > 0) {
+        const byParent = new Map<string, DirectoryEntry[]>();
+        for (const entry of listing.entries) {
+          const parent = entry.path.substring(0, entry.path.lastIndexOf("/"));
+          if (parent !== dirPath?.replace(/\/$/, "")) {
+            const existing = byParent.get(parent) ?? [];
+            existing.push(entry);
+            byParent.set(parent, existing);
+          }
+        }
+        for (const [parent, children] of byParent) {
+          queryClient.setQueryData<DirectoryListing>(
+            ["directory", machineId, parent],
+            { path: parent, entries: children },
+          );
+        }
+
+        // Return only direct children for this directory
+        const cleanRoot = dirPath!.replace(/\/$/, "");
+        const directChildren = listing.entries.filter((e) => {
+          const parent = e.path.substring(0, e.path.lastIndexOf("/"));
+          return parent === cleanRoot;
+        });
+        return { path: listing.path, entries: directChildren };
+      }
+
+      return listing;
+    },
     enabled: !!machineId && !!dirPath,
-    staleTime: 10_000,
+    staleTime: 30_000,
   });
 }
 

@@ -118,13 +118,18 @@ async def write_file_endpoint(
 async def list_directory_endpoint(
     machine_id: str = Query(...),
     dir_path: str = Query(...),
+    depth: int = Query(1, ge=1, le=5),
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DirectoryListing:
-    """List directory contents with type info."""
+    """List directory contents with type info.
+
+    Use depth > 1 to prefetch multiple levels in a single SSH call.
+    The response still contains a flat list — the frontend groups by parent path.
+    """
     await _validate_machine(machine_id, db)
     try:
-        entries = await list_directory(machine_id, dir_path)
+        entries = await list_directory(machine_id, dir_path, depth)
         return DirectoryListing(
             path=dir_path,
             entries=[DirectoryEntry(**e) for e in entries],

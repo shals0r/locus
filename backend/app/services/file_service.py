@@ -182,38 +182,53 @@ async def write_file(machine_id: str, file_path: str, content: str) -> None:
         raise IOError(f"Failed to write {file_path}: {exc}") from exc
 
 
-async def list_directory(machine_id: str, dir_path: str) -> list[dict]:
+async def list_directory(
+    machine_id: str, dir_path: str, depth: int = 1
+) -> list[dict]:
     """List directory contents with type info (file vs directory).
 
-    Uses ls -1F to get entries with type indicators.
-    Returns list of {"name": str, "is_dir": bool} sorted dirs-first
-    then alphabetical.
+    Uses find with -maxdepth to fetch multiple levels in a single SSH call.
+    depth=1 returns immediate children, depth=3 prefetches 3 levels deep.
+    Returns flat list with full paths — caller groups by parent.
     """
     safe_path = shlex.quote(dir_path)
+    clean_root = dir_path.rstrip("/")
 
     try:
+        # find prints type (d/f) + path, -mindepth 1 skips the root itself
         output = await run_command_on_machine(
-            machine_id, f"ls -1F {safe_path}"
+            machine_id,
+            f"find {safe_path} -maxdepth {depth} -mindepth 1"
+            f" \\( -type d -printf 'd %p\\n' \\) -o \\( -type f -printf 'f %p\\n' \\)"
+            f" 2>/dev/null"
+            f" || find {safe_path} -maxdepth {depth} -mindepth 1 -print0"
+            f" | xargs -0 -I{{}} sh -c 'if [ -d \"{{}}\" ]; then echo \"d {{}}\"; else echo \"f {{}}\"; fi'"
         )
     except Exception as exc:
         raise FileNotFoundError(f"Directory not found: {dir_path}: {exc}") from exc
 
     entries: list[dict] = []
     for line in output.strip().split("\n"):
-        name = line.strip()
-        if not name:
+        line = line.strip()
+        if not line or len(line) < 3:
             continue
 
-        is_dir = name.endswith("/")
-        # Strip type indicators: / (dir), * (exec), @ (link), | (pipe), = (socket)
-        clean_name = name.rstrip("/*@|=")
-        if not clean_name:
+        entry_type = line[0]
+        entry_path = line[2:]
+        if not entry_path or entry_path == clean_root:
             continue
 
-        full_path = f"{dir_path.rstrip('/')}/{clean_name}"
-        entries.append({"name": clean_name, "path": full_path, "is_dir": is_dir})
+        is_dir = entry_type == "d"
+        name = entry_path.rsplit("/", 1)[-1]
+        if not name or name.startswith("."):
+            continue
 
-    # Sort: directories first, then alphabetical within each group
+        entries.append({
+            "name": name,
+            "path": entry_path,
+            "is_dir": is_dir,
+        })
+
     entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
     return entries
 
