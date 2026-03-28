@@ -1,23 +1,57 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Plus, Terminal, FileCode, GitCompareArrows, Bot, X } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
-import { useSessionStore } from "../../stores/sessionStore";
+import { useSessionStore, type CenterTab } from "../../stores/sessionStore";
+import { useEditorStore } from "../../stores/editorStore";
 import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
 import { apiPost } from "../../hooks/useApi";
-import type { TerminalSession } from "../../types";
-import { SessionTab } from "./SessionTab";
+import type { TerminalSession, ClaudeStatus } from "../../types";
+
+function TabIcon({ tab, claudeStatus }: { tab: CenterTab; claudeStatus?: ClaudeStatus }) {
+  if (tab.type === "terminal" && claudeStatus) {
+    return <Bot size={12} className="shrink-0" />;
+  }
+  switch (tab.icon) {
+    case "terminal":
+      return <Terminal size={12} className="shrink-0" />;
+    case "diff":
+      return <GitCompareArrows size={12} className="shrink-0" />;
+    case "file":
+      return <FileCode size={12} className="shrink-0" />;
+  }
+}
 
 export function SessionTabBar() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
-  const getSessionsForMachine = useSessionStore((s) => s.getSessionsForMachine);
+  const tabs = useSessionStore((s) => s.tabs);
+  const activeTabId = useSessionStore((s) => s.activeTabId);
+  const setActiveTab = useSessionStore((s) => s.setActiveTab);
+  const closeTab = useSessionStore((s) => s.closeTab);
+  const reorderTabs = useSessionStore((s) => s.reorderTabs);
+  const sessions = useSessionStore((s) => s.sessions);
   const addSession = useSessionStore((s) => s.addSession);
-  const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const removeSession = useSessionStore((s) => s.removeSession);
+  const isDirty = useEditorStore((s) => s.isDirty);
   const claudeSessions = useClaudeSessionStore((s) => s.claudeSessions);
+
   const [creating, setCreating] = useState(false);
+  const dragIndexRef = useRef<number | null>(null);
 
   if (!activeMachineId) return null;
 
-  const sessions = getSessionsForMachine(activeMachineId);
+  // Filter tabs for the active machine (terminal tabs for this machine + all diff/editor tabs for this machine)
+  const machineTabs = tabs.filter((tab) => {
+    if (tab.type === "terminal") {
+      return tab.terminalData?.machineId === activeMachineId;
+    }
+    if (tab.type === "diff") {
+      return tab.diffData?.machineId === activeMachineId;
+    }
+    if (tab.type === "editor") {
+      return tab.editorData?.machineId === activeMachineId;
+    }
+    return false;
+  });
 
   async function handleNewSession() {
     if (!activeMachineId || creating) return;
@@ -28,7 +62,6 @@ export function SessionTabBar() {
         session_type: "shell",
       });
       addSession(session);
-      setActiveSession(session.id);
     } catch (err) {
       console.error("Failed to create session:", err);
     } finally {
@@ -36,30 +69,114 @@ export function SessionTabBar() {
     }
   }
 
+  function handleCloseTab(e: React.MouseEvent, tab: CenterTab) {
+    e.stopPropagation();
+    if (tab.type === "editor" && isDirty(tab.id)) {
+      const confirmed = window.confirm(
+        `"${tab.label}" has unsaved changes. Close anyway?`,
+      );
+      if (!confirmed) return;
+    }
+    // For terminal tabs, also remove the session
+    if (tab.type === "terminal" && tab.terminalData) {
+      removeSession(tab.terminalData.sessionId);
+      return;
+    }
+    closeTab(tab.id);
+  }
+
+  function handleDragStart(e: React.DragEvent, index: number) {
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(e: React.DragEvent, dropIndex: number) {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex === null || fromIndex === dropIndex) return;
+    // Map machine tab indices back to global tab indices
+    const fromGlobalIndex = tabs.indexOf(machineTabs[fromIndex]);
+    const toGlobalIndex = tabs.indexOf(machineTabs[dropIndex]);
+    if (fromGlobalIndex >= 0 && toGlobalIndex >= 0) {
+      reorderTabs(fromGlobalIndex, toGlobalIndex);
+    }
+    dragIndexRef.current = null;
+  }
+
   return (
     <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
-      {sessions.map((session) => {
-        // Compute shell index for display (Shell 1, Shell 2, etc.)
-        const shellIndex =
-          session.session_type === "shell"
-            ? sessions
-                .filter((s) => s.session_type === "shell")
-                .indexOf(session) + 1
-            : undefined;
-        // Match Claude session status by tmux session name on same machine
-        const claudeMatch = claudeSessions.find(
-          (cs) =>
-            cs.machine_id === activeMachineId &&
-            cs.tmux_session === session.tmux_session_name,
-        );
+      {machineTabs.map((tab, localIndex) => {
+        const isActive = tab.id === activeTabId;
+        // For terminal tabs, check for Claude session status
+        let claudeStatus: ClaudeStatus | undefined;
+        if (tab.type === "terminal" && tab.terminalData) {
+          const session = sessions.find(
+            (s) => s.id === tab.terminalData?.sessionId,
+          );
+          if (session?.session_type === "claude") {
+            const claudeMatch = claudeSessions.find(
+              (cs) =>
+                cs.machine_id === activeMachineId &&
+                cs.tmux_session === session.tmux_session_name,
+            );
+            claudeStatus = claudeMatch?.status;
+          }
+        }
+
+        // Dirty indicator for editor tabs
+        const dirty = tab.type === "editor" && isDirty(tab.id);
+
         return (
-          <SessionTab
-            key={session.id}
-            session={session}
-            claudeStatus={claudeMatch?.status}
-            shellIndex={shellIndex}
-            totalShells={sessions.filter((s) => s.session_type === "shell").length}
-          />
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            draggable
+            onDragStart={(e) => handleDragStart(e, localIndex)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, localIndex)}
+            className={`group flex shrink-0 items-center gap-1.5 px-2 text-xs transition-colors ${
+              isActive
+                ? "border-b-2 border-accent text-primary-text"
+                : "border-b-2 border-transparent text-muted hover:text-primary-text"
+            }`}
+            style={{ height: "32px" }}
+          >
+            <TabIcon tab={tab} claudeStatus={claudeStatus} />
+            {claudeStatus && (
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  claudeStatus === "waiting"
+                    ? "bg-warning animate-pulse"
+                    : claudeStatus === "running"
+                      ? "bg-success"
+                      : "bg-muted"
+                }`}
+              />
+            )}
+            {dirty && (
+              <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+            )}
+            <span className="truncate max-w-[120px]">{tab.label}</span>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => handleCloseTab(e, tab)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  handleCloseTab(e as unknown as React.MouseEvent, tab);
+                }
+              }}
+              className="ml-1 hidden rounded p-0.5 text-muted hover:bg-hover hover:text-primary-text group-hover:inline-flex"
+            >
+              <X size={10} />
+            </span>
+          </button>
         );
       })}
       <button
