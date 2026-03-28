@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle, X, FileCode, FileEdit, GitCommitHorizontal, GitPullRequest } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
@@ -11,7 +11,7 @@ import { MachineTabBar } from "../navigation/MachineTabBar";
 import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ContextStrip } from "../session/ContextStrip";
 import { TerminalView } from "../terminal/TerminalView";
-import { DiffViewer } from "../diff/DiffViewer";
+import { DiffPanel } from "../diff/DiffPanel";
 import { CodeEditor } from "../editor/CodeEditor";
 import { FileBreadcrumb } from "../editor/FileBreadcrumb";
 
@@ -29,8 +29,6 @@ export function CenterPanel() {
   const tabs = useSessionStore((s) => s.tabs);
   const activeTabId = useSessionStore((s) => s.activeTabId);
   const activeTab = tabs.find((t) => t.id === activeTabId);
-  const closeTab = useSessionStore((s) => s.closeTab);
-  const openEditorTab = useSessionStore((s) => s.openEditorTab);
 
   // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
@@ -150,52 +148,10 @@ export function CenterPanel() {
         <>
           {activeTask && <ContextStrip />}
           <SessionTabBar />
-          {activeTab?.type === "diff" && activeTab.diffData && (
-            <>
-              <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
-                {activeTab.diffData.sourceType === "mr" ? (
-                  <GitPullRequest size={12} className="text-accent shrink-0" />
-                ) : activeTab.diffData.sourceType === "file" ? (
-                  <FileCode size={12} className="text-accent shrink-0" />
-                ) : (
-                  <GitCommitHorizontal size={12} className="text-accent shrink-0" />
-                )}
-                <span className="text-xs font-medium text-accent truncate">
-                  {activeTab.label}
-                </span>
-                {activeTab.diffData.filePath && (
-                  <button
-                    onClick={() => {
-                      const fp = activeTab.diffData!.filePath!;
-                      const fullPath = fp.startsWith("/") ? fp : `${activeTab.diffData!.repoPath}/${fp}`;
-                      openEditorTab(activeTab.diffData!.machineId, activeTab.diffData!.repoPath, fullPath);
-                    }}
-                    className="ml-1 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted hover:text-primary-text hover:bg-hover transition-colors"
-                    title="Open in Editor"
-                  >
-                    <FileEdit size={11} />
-                    Edit
-                  </button>
-                )}
-                <button
-                  onClick={() => closeTab(activeTab.id)}
-                  className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
-                  aria-label="Close diff tab"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-              <FileBreadcrumb
-                machineId={activeTab.diffData.machineId}
-                repoPath={activeTab.diffData.repoPath}
-                filePath={activeTab.diffData.filePath}
-              />
-            </>
-          )}
           <div className="relative flex-1 overflow-hidden">
             {activeTab?.type === "diff" && activeTab.diffData && (
               <div className="absolute inset-0">
-                <DiffViewer
+                <DiffPanel
                   key={activeTab.id}
                   machineId={activeTab.diffData.machineId}
                   repoPath={activeTab.diffData.repoPath}
