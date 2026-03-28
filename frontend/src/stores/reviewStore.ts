@@ -1,11 +1,22 @@
 import { create } from "zustand";
 
+export type AnnotationSeverity = "error" | "warning" | "suggestion" | "info";
+
 export interface ReviewAnnotation {
   id: string;
   file: string;
   line: number;
-  severity: "error" | "warning" | "suggestion" | "info";
+  severity: AnnotationSeverity;
   comment: string;
+  /** Whether the annotation is selected for batch operations */
+  selected?: boolean;
+}
+
+export interface CommentNote {
+  id: string;
+  author: string;
+  body: string;
+  created_at: string;
 }
 
 export interface CommentThread {
@@ -15,6 +26,10 @@ export interface CommentThread {
   author: string;
   body: string;
   created_at: string;
+  /** Whether this thread is resolved */
+  resolved?: boolean;
+  /** All comments in the thread (parent + replies) */
+  comments: CommentNote[];
   replies: Array<{
     id: string;
     author: string;
@@ -37,13 +52,19 @@ interface ReviewState {
   isReviewing: boolean;
   annotationPanelOpen: boolean;
   chatPanelOpen: boolean;
+  focusedAnnotationId: string | null;
 
   setAnnotations: (annotations: ReviewAnnotation[]) => void;
   setComments: (comments: CommentThread[]) => void;
   addAnnotation: (annotation: ReviewAnnotation) => void;
   updateAnnotation: (id: string, comment: string) => void;
   removeAnnotation: (id: string) => void;
+  clearAnnotations: () => void;
   toggleAnnotationPanel: () => void;
+  setAnnotationPanelOpen: (open: boolean) => void;
+  setFocusedAnnotation: (id: string | null) => void;
+  toggleAnnotationSelected: (id: string) => void;
+  selectAll: (selected: boolean) => void;
   toggleChatPanel: () => void;
   addChatMessage: (message: ChatMessage) => void;
   clearChatMessages: () => void;
@@ -57,6 +78,7 @@ export const useReviewStore = create<ReviewState>((set) => ({
   isReviewing: false,
   annotationPanelOpen: false,
   chatPanelOpen: false,
+  focusedAnnotationId: null,
 
   setAnnotations: (annotations) => set({ annotations }),
   setComments: (comments) => set({ comments }),
@@ -72,8 +94,21 @@ export const useReviewStore = create<ReviewState>((set) => ({
     set((s) => ({
       annotations: s.annotations.filter((a) => a.id !== id),
     })),
+  clearAnnotations: () => set({ annotations: [] }),
   toggleAnnotationPanel: () =>
     set((s) => ({ annotationPanelOpen: !s.annotationPanelOpen })),
+  setAnnotationPanelOpen: (open) => set({ annotationPanelOpen: open }),
+  setFocusedAnnotation: (id) => set({ focusedAnnotationId: id }),
+  toggleAnnotationSelected: (id) =>
+    set((s) => ({
+      annotations: s.annotations.map((a) =>
+        a.id === id ? { ...a, selected: !a.selected } : a,
+      ),
+    })),
+  selectAll: (selected) =>
+    set((s) => ({
+      annotations: s.annotations.map((a) => ({ ...a, selected })),
+    })),
   toggleChatPanel: () =>
     set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
   addChatMessage: (message) =>

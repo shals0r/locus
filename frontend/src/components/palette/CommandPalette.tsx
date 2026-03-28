@@ -272,7 +272,7 @@ export function CommandPalette() {
         window.dispatchEvent(new CustomEvent("locus:sidebar-tab", { detail: "search" }));
         // Focus search input after a brief delay for re-render
         setTimeout(() => {
-          const focusFn = (window as Record<string, unknown>).__locusFileSearchFocus;
+          const focusFn = (window as unknown as Record<string, unknown>).__locusFileSearchFocus;
           if (typeof focusFn === "function") {
             (focusFn as () => void)();
           }

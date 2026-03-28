@@ -113,7 +113,7 @@ export function FileSearch() {
   // Expose focusInput for external use (e.g., command palette)
   // The component stores it on the window for simplicity
   if (typeof window !== "undefined") {
-    (window as Record<string, unknown>).__locusFileSearchFocus = focusInput;
+    (window as unknown as Record<string, unknown>).__locusFileSearchFocus = focusInput;
   }
 
   const results = data?.results ?? [];

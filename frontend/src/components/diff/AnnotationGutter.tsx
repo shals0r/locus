@@ -48,7 +48,8 @@ export function AnnotationGutter({
   );
   const setFocusedAnnotation = useReviewStore((s) => s.setFocusedAnnotation);
 
-  const config = SEVERITY_CONFIG[severity] ?? SEVERITY_CONFIG.info;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- SEVERITY_CONFIG covers all AnnotationSeverity values
+  const config = (SEVERITY_CONFIG[severity] ?? SEVERITY_CONFIG["info"])!;
   const Icon = config.icon;
   const tooltipText = comment.length > 50 ? comment.slice(0, 50) + "..." : comment;
 

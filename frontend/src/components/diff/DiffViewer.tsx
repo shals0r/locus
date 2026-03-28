@@ -1,11 +1,11 @@
 import { useMemo, useState, useCallback, type ReactNode } from "react";
-import { DiffView, DiffModeEnum } from "@git-diff-view/react";
+import { DiffView, DiffModeEnum, type SplitSide } from "@git-diff-view/react";
 import { DiffFile } from "@git-diff-view/file";
 import "@git-diff-view/react/styles/diff-view.css";
 import { Loader2, AlertCircle, AlertTriangle, Lightbulb, Info } from "lucide-react";
 import { useDiffData } from "../../hooks/useDiffData";
 import { useReviewStore } from "../../stores/reviewStore";
-import type { AnnotationSeverity, ReviewAnnotation } from "../../stores/reviewStore";
+import type { AnnotationSeverity, ReviewAnnotation, CommentThread } from "../../stores/reviewStore";
 
 // ---------------------------------------------------------------------------
 // Language detection from file extension
@@ -147,11 +147,29 @@ export interface DiffViewerProps {
   sourceType?: string;
   /** Whether this is an MR/PR diff (enables add-widget button) */
   isMrDiff?: boolean;
+  /** Task ID for MR/PR diffs (enables metadata header and comments) */
+  taskId?: string;
+  /** MR/PR comments passed from parent */
+  comments?: CommentThread[];
   /** Widget system pass-through for Plan 06 annotations */
-  extendData?: Record<string, unknown>;
-  renderExtendLine?: (...args: unknown[]) => ReactNode;
-  renderWidgetLine?: (...args: unknown[]) => ReactNode;
-  onAddWidgetClick?: (...args: unknown[]) => void;
+  extendData?: {
+    oldFile?: Record<string, { data: unknown }>;
+    newFile?: Record<string, { data: unknown }>;
+  };
+  renderExtendLine?: (args: {
+    lineNumber: number;
+    side: SplitSide;
+    data: unknown;
+    diffFile: DiffFile;
+    onUpdate: () => void;
+  }) => ReactNode;
+  renderWidgetLine?: (args: {
+    lineNumber: number;
+    side: SplitSide;
+    diffFile: DiffFile;
+    onClose: () => void;
+  }) => ReactNode;
+  onAddWidgetClick?: (lineNumber: number, side: SplitSide) => void;
   /** For multi-file diffs: which file is currently selected */
   selectedFile?: string;
   /** Callback when view mode changes (for DiffToolbar integration) */
@@ -240,41 +258,52 @@ export function DiffViewer({
 
   // Build extendData mapping: line number -> annotation data for rendering
   const annotationExtendData = useMemo(() => {
-    if (annotations.length === 0) return {};
-    const data: Record<string, { annotations: ReviewAnnotation[] }> = {};
+    if (annotations.length === 0) return undefined;
+    const newFileData: Record<string, { data: { annotations: ReviewAnnotation[] } }> = {};
     for (const annotation of annotations) {
       // Filter to the active file if applicable
       if (activeSection && annotation.file && annotation.file !== activeSection.fileName) {
         continue;
       }
       const key = `${annotation.line}`;
-      if (!data[key]) {
-        data[key] = { annotations: [] };
+      if (!newFileData[key]) {
+        newFileData[key] = { data: { annotations: [] } };
       }
-      data[key]!.annotations.push(annotation);
+      newFileData[key]!.data.annotations.push(annotation);
     }
-    return data;
+    return { newFile: newFileData };
   }, [annotations, activeSection]);
 
   // Merge external extendData with annotation extendData
   const mergedExtendData = useMemo(() => {
-    if (Object.keys(annotationExtendData).length === 0) return externalExtendData;
+    if (!annotationExtendData) return externalExtendData;
     if (!externalExtendData) return annotationExtendData;
-    return { ...externalExtendData, ...annotationExtendData };
+    return {
+      oldFile: externalExtendData.oldFile,
+      newFile: { ...externalExtendData.newFile, ...annotationExtendData.newFile },
+    };
   }, [externalExtendData, annotationExtendData]);
 
   // renderExtendLine: render annotation inline previews
   const annotationRenderExtendLine = useCallback(
-    (_lineNumber: unknown, _side: unknown, data: unknown) => {
+    ({ data, diffFile, side, lineNumber, onUpdate }: {
+      lineNumber: number;
+      side: SplitSide;
+      data: unknown;
+      diffFile: DiffFile;
+      onUpdate: () => void;
+    }) => {
       const lineData = data as { annotations?: ReviewAnnotation[] } | undefined;
       if (!lineData?.annotations?.length) {
-        return externalRenderExtendLine?.(_lineNumber, _side, data) ?? null;
+        return externalRenderExtendLine?.({ lineNumber, side, data, diffFile, onUpdate }) ?? null;
       }
 
       return (
         <div className="flex flex-col gap-0.5 py-1 px-2" style={{ background: "rgba(30,30,46,0.8)" }}>
           {lineData.annotations.map((annotation) => {
-            const severityConfig = SEVERITY_ICONS[annotation.severity] ?? SEVERITY_ICONS.info;
+            const severityConfig = (annotation.severity in SEVERITY_ICONS
+              ? SEVERITY_ICONS[annotation.severity]
+              : SEVERITY_ICONS.info) as { icon: typeof AlertCircle; color: string };
             const Icon = severityConfig.icon;
             const truncatedComment =
               annotation.comment.length > 120

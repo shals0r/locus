@@ -10,7 +10,6 @@ import { FileTree } from "../filetree/FileTree";
 import { FileSearch } from "../filetree/FileSearch";
 import {
   SidebarTabs,
-  SidebarTabPlaceholder,
   type SidebarTabId,
 } from "../navigation/SidebarTabs";
 

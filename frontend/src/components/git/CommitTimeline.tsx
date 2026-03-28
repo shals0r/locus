@@ -49,7 +49,7 @@ function parseFilesFromDiff(diffText: string): CommitFile[] {
     const headerMatch = section.match(/^diff --git a\/(.*?) b\/(.*)/m);
     if (!headerMatch) continue;
 
-    const filePath = headerMatch[2];
+    const filePath = headerMatch[2] ?? headerMatch[1] ?? "unknown";
     let status: CommitFile["status"] = "M";
 
     if (/^new file mode/m.test(section)) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Plus, Terminal, FileCode, GitCompareArrows, Bot, X } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore, type CenterTab } from "../../stores/sessionStore";

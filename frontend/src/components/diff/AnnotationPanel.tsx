@@ -75,8 +75,8 @@ function AnnotationItemRow({
   );
   const focusedAnnotationId = useReviewStore((s) => s.focusedAnnotationId);
 
-  const config =
-    SEVERITY_CONFIG[annotation.severity] ?? SEVERITY_CONFIG.info;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- SEVERITY_CONFIG covers all AnnotationSeverity values
+  const config = (SEVERITY_CONFIG[annotation.severity] ?? SEVERITY_CONFIG["info"])!;
   const Icon = config.icon;
   const isFocused = focusedAnnotationId === annotation.id;
   const itemRef = useRef<HTMLDivElement>(null);

@@ -84,7 +84,7 @@ export function ReviewSubmitDialog({
   const annotations = useReviewStore((s) => s.annotations);
   const clearAnnotations = useReviewStore((s) => s.clearAnnotations);
 
-  const selectedAnnotations = annotations.filter((a) => a.selected);
+  const selectedAnnotations = annotations.filter((a) => !!a.selected);
   const hasSelectedAnnotations = selectedAnnotations.length > 0;
 
   const [event, setEvent] = useState<ReviewEvent>("COMMENT");

@@ -271,6 +271,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((s) => {
       const tabs = [...s.tabs];
       const [moved] = tabs.splice(fromIndex, 1);
+      if (!moved) return {};
       tabs.splice(toIndex, 0, moved);
       return { tabs };
     }),
