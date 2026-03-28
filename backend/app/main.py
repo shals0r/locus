@@ -22,6 +22,7 @@ from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
 from app.api.ai_review import router as ai_review_router
 from app.api.upload import router as upload_router
+from app.api.workers import router as workers_router, get_supervisor
 from app.database import engine
 from app.models import Base
 from app.local.manager import local_machine_manager
@@ -29,6 +30,7 @@ from app.ssh.manager import ssh_manager
 from app.ws.feed import router as feed_ws_router
 from app.ws.terminal import router as terminal_ws_router
 from app.ws.status import router as status_ws_router
+from app.ws.worker_logs import router as worker_logs_router
 from app.integrations.scheduler import start_polling, stop_polling
 
 logger = logging.getLogger(__name__)
@@ -137,12 +139,35 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 logger.warning("Auto-connect failed for %s: %s", machine.name, exc)
 
-    # Start integration polling (APScheduler)
+    # Start integration polling (APScheduler -- legacy, kept for backward compat)
     await start_polling()
+
+    # Start supervisor-managed workers (Phase 4 subprocess model)
+    supervisor = get_supervisor()
+    async with async_session_factory() as db:
+        from app.models.integration_source import IntegrationSource as IS
+        worker_result = await db.execute(
+            select(IS).where(IS.is_enabled.is_(True), IS.worker_script_path.isnot(None))
+        )
+        enabled_workers = worker_result.scalars().all()
+        for src in enabled_workers:
+            try:
+                env = await supervisor.build_worker_env(str(src.id))
+                await supervisor.start_worker(
+                    worker_id=str(src.id),
+                    script_path=src.worker_script_path,
+                    env=env,
+                )
+                logger.info("Auto-started worker: %s (%s)", src.name, src.source_type)
+            except Exception as exc:
+                logger.warning("Failed to auto-start worker %s: %s", src.name, exc)
 
     yield
 
-    # Shutdown integration polling
+    # Shutdown supervisor-managed workers
+    await supervisor.shutdown()
+
+    # Shutdown legacy polling
     await stop_polling()
     await local_machine_manager.shutdown()
     await ssh_manager.shutdown()
@@ -159,6 +184,7 @@ app = FastAPI(
 app.include_router(terminal_ws_router)
 app.include_router(status_ws_router)
 app.include_router(feed_ws_router)
+app.include_router(worker_logs_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,6 +209,7 @@ app.include_router(settings_router)
 app.include_router(tasks_router)
 app.include_router(upload_router)
 app.include_router(skills_router)
+app.include_router(workers_router)
 app.include_router(files_router)
 
 
