@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.ai_review import router as ai_review_router
 from app.api.auth import router as auth_router
+from app.api.skills import router as skills_router
 from app.api.feed import router as feed_router
 from app.api.files import router as files_router
 from app.api.git import router as git_router
@@ -181,6 +182,7 @@ app.include_router(sessions_router)
 app.include_router(settings_router)
 app.include_router(tasks_router)
 app.include_router(upload_router)
+app.include_router(skills_router)
 app.include_router(files_router)
 
 
