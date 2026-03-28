@@ -384,6 +384,7 @@ export function DiffViewer({
   return (
     <div className="h-full overflow-auto" style={{ background: "#0f1117" }}>
       <DiffView
+        key={`${filePath ?? ""}-${commitSha ?? ""}-${rawDiffText?.length ?? 0}`}
         diffFile={diffFile}
         diffViewMode={mode}
         diffViewTheme="dark"
