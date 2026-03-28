@@ -10,7 +10,6 @@ import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
 import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ContextStrip } from "../session/ContextStrip";
-import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 import { DiffViewer } from "../diff/DiffViewer";
 import { CodeEditor } from "../editor/CodeEditor";
@@ -18,7 +17,6 @@ import { FileBreadcrumb } from "../editor/FileBreadcrumb";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
-  const claudeViewActive = useMachineStore((s) => s.claudeViewActive);
   const machineStatuses = useMachineStore((s) => s.machineStatuses);
   const machines = useMachineStore((s) => s.machines);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -111,11 +109,7 @@ export function CenterPanel() {
   return (
     <div className="flex h-full flex-col">
       <MachineTabBar />
-      {claudeViewActive ? (
-        <div className="flex-1 overflow-y-auto">
-          <ClaudeOverview />
-        </div>
-      ) : machineNeedsSetup ? (
+      {machineNeedsSetup ? (
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-md text-center px-6">
             <AlertTriangle size={32} className="mx-auto mb-4 text-warning" />
