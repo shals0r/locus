@@ -1,87 +1,66 @@
 """Pydantic schemas for code review operations."""
 
-from typing import Literal
-from uuid import uuid4
-
-from pydantic import BaseModel, Field
-
-
-class ReviewAnnotation(BaseModel):
-    """An AI-generated review annotation on a specific file and line."""
-
-    file: str
-    line: int
-    severity: Literal["error", "warning", "suggestion", "info"]
-    comment: str
-    id: str = Field(default_factory=lambda: str(uuid4()))
-
-
-class ReviewComment(BaseModel):
-    """A review comment for posting to a merge/pull request."""
-
-    file: str
-    line: int
-    body: str
-    side: Literal["LEFT", "RIGHT"] = "RIGHT"
-
-
-class CommentReply(BaseModel):
-    """A reply within a comment thread."""
-
-    id: str
-    author: str
-    body: str
-    created_at: str
-
-
-class CommentThread(BaseModel):
-    """A threaded discussion on a specific file and line."""
-
-    id: str
-    file: str
-    line: int
-    author: str
-    body: str
-    replies: list[CommentReply]
-    created_at: str
-
-
-class ReviewSubmission(BaseModel):
-    """A review submission to a merge/pull request."""
-
-    mr_id: str
-    source_type: str
-    comments: list[ReviewComment]
-    event: Literal["APPROVE", "REQUEST_CHANGES", "COMMENT"]
-    body: str = ""
+from pydantic import BaseModel
 
 
 class MrMetadata(BaseModel):
-    """Metadata for a merge/pull request."""
+    """Merge/Pull request metadata."""
 
-    id: str
+    mr_id: str
     title: str
-    description: str
+    description: str | None = None
     author: str
-    status: str
+    status: str  # open, merged, closed
     source_branch: str
     target_branch: str
-    reviewers: list[str]
-    pipeline_status: str | None
-    url: str
-    source_type: str
-    project_id: str
-    diff_refs: dict | None = None
+    reviewers: list[str] = []
+    pipeline_status: str | None = None
+    url: str | None = None
+    provider: str  # "github" or "gitlab"
 
 
-class AiReviewRequest(BaseModel):
-    """Request for AI-assisted code review."""
+class CommentNote(BaseModel):
+    """A single comment/note within a thread."""
 
-    diff_text: str
-    custom_prompt: str | None = None
+    id: str
+    author: str
+    body: str
+    created_at: str
+    updated_at: str | None = None
 
 
-class AiReviewResponse(BaseModel):
-    """Response from AI-assisted code review."""
+class CommentThread(BaseModel):
+    """A discussion thread on a merge/pull request."""
 
-    annotations: list[ReviewAnnotation]
+    id: str
+    file_path: str | None = None
+    line: int | None = None
+    side: str = "RIGHT"  # LEFT or RIGHT
+    resolved: bool = False
+    comments: list[CommentNote] = []
+
+
+class ReviewComment(BaseModel):
+    """A review comment to be posted."""
+
+    file_path: str
+    line: int
+    body: str
+    side: str = "RIGHT"
+
+
+class ReviewSubmission(BaseModel):
+    """Submit a full review with comments and event."""
+
+    task_id: str
+    comments: list[ReviewComment] = []
+    event: str = "COMMENT"  # COMMENT, APPROVE, REQUEST_CHANGES
+    body: str = ""
+
+
+class ReplyRequest(BaseModel):
+    """Reply to an existing comment thread."""
+
+    task_id: str
+    thread_id: str
+    body: str

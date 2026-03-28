@@ -113,8 +113,8 @@ Plans:
 - [ ] 03-01-PLAN.md — Backend file service + file API + review/file schemas
 - [ ] 03-02-PLAN.md — Review provider abstraction (GitHub + GitLab) + AI review service
 - [ ] 03-03-PLAN.md — Unified tab system (terminal + diff + editor) + sidebar tabs (Git | Files | Search)
-- [x] 03-04-PLAN.md — Replace DiffViewer with @git-diff-view/react (split/unified, syntax highlight, virtual scroll, file list)
-- [ ] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
+- [ ] 03-04-PLAN.md — Replace DiffViewer with @git-diff-view/react (split/unified, syntax highlight, virtual scroll, file list)
+- [x] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
 - [ ] 03-06-PLAN.md — AI review trigger + annotations (gutter icons, side panel, batch post, review submit)
 - [ ] 03-07-PLAN.md — Monaco editor + file tree + file operations + editor tabs
 - [ ] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
