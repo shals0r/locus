@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle, X, FileCode, GitCommitHorizontal } from "lucide-react";
+import { AlertTriangle, X, FileCode, FileEdit, GitCommitHorizontal } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
@@ -13,6 +13,7 @@ import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 import { DiffViewer } from "../diff/DiffViewer";
+import { FileBreadcrumb } from "../editor/FileBreadcrumb";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -26,6 +27,7 @@ export function CenterPanel() {
   const activeTask = useTaskStore((s) => s.activeTask);
   const setActiveTask = useTaskStore((s) => s.setActiveTask);
   const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
+  const openDiffTab = useSessionStore((s) => s.openDiffTab);
   const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
 
   // Hydrate activeTask from server ONLY on initial mount
@@ -125,23 +127,52 @@ export function CenterPanel() {
           {activeTask && <ContextStrip />}
           <SessionTabBar />
           {activeDiffTab && (
-            <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
-              {activeDiffTab.type === "file" ? (
-                <FileCode size={12} className="text-accent shrink-0" />
-              ) : (
-                <GitCommitHorizontal size={12} className="text-accent shrink-0" />
-              )}
-              <span className="text-xs font-medium text-accent truncate">
-                {activeDiffTab.label}
-              </span>
-              <button
-                onClick={closeDiffTab}
-                className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
-                aria-label="Close diff tab"
-              >
-                <X size={12} />
-              </button>
-            </div>
+            <>
+              <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
+                {activeDiffTab.type === "file" ? (
+                  <FileCode size={12} className="text-accent shrink-0" />
+                ) : (
+                  <GitCommitHorizontal size={12} className="text-accent shrink-0" />
+                )}
+                <span className="text-xs font-medium text-accent truncate">
+                  {activeDiffTab.label}
+                </span>
+                {/* Open in Editor button -- opens file in a separate editor tab */}
+                {activeDiffTab.filePath && (
+                  <button
+                    onClick={() => {
+                      // Open the file as a new diff tab of type "file" (editor tab)
+                      // This creates an independent tab for the same file
+                      openDiffTab({
+                        type: "file",
+                        machineId: activeDiffTab.machineId,
+                        repoPath: activeDiffTab.repoPath,
+                        filePath: activeDiffTab.filePath,
+                        label: `[Edit] ${activeDiffTab.filePath?.split("/").pop() ?? activeDiffTab.label}`,
+                      });
+                    }}
+                    className="ml-1 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted hover:text-primary-text hover:bg-hover transition-colors"
+                    title="Open in Editor"
+                  >
+                    <FileEdit size={11} />
+                    Edit
+                  </button>
+                )}
+                <button
+                  onClick={closeDiffTab}
+                  className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
+                  aria-label="Close diff tab"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              {/* Breadcrumb navigation */}
+              <FileBreadcrumb
+                machineId={activeDiffTab.machineId}
+                repoPath={activeDiffTab.repoPath}
+                filePath={activeDiffTab.filePath}
+              />
+            </>
           )}
           <div className="relative flex-1 overflow-hidden">
             {activeDiffTab && (

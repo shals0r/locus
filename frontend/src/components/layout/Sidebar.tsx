@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Plus, GitCommit, FolderTree } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
@@ -15,6 +15,17 @@ export function Sidebar() {
   const selectedMachineId = useRepoStore((s) => s.selectedMachineId);
   const selectedRepoPath = useRepoStore((s) => s.selectedRepoPath);
   const [activeTab, setActiveTab] = useState<SidebarTabId>("git");
+
+  // Listen for sidebar tab change events from command palette
+  const handleTabEvent = useCallback((e: Event) => {
+    const tab = (e as CustomEvent<SidebarTabId>).detail;
+    if (tab) setActiveTab(tab);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("locus:sidebar-tab", handleTabEvent);
+    return () => window.removeEventListener("locus:sidebar-tab", handleTabEvent);
+  }, [handleTabEvent]);
 
   // Compute aggregate status for the header
   const statuses = Object.values(machineStatuses);
