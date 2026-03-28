@@ -15,6 +15,8 @@ import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 import { DiffViewer } from "../diff/DiffViewer";
 import { MrMetadataHeader } from "../diff/MrMetadataHeader";
+import { CodeEditor } from "../editor/CodeEditor";
+import { FileBreadcrumb } from "../editor/FileBreadcrumb";
 import type { DiffTab } from "../../stores/sessionStore";
 
 /**
@@ -52,6 +54,11 @@ export function CenterPanel() {
   const setActiveTask = useTaskStore((s) => s.setActiveTask);
   const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
   const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
+
+  // Unified tab system
+  const tabs = useSessionStore((s) => s.tabs);
+  const activeTabId = useSessionStore((s) => s.activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId);
 
   // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
@@ -100,6 +107,31 @@ export function CenterPanel() {
   const machineSessions = sessions.filter(
     (s) => s.machine_id === activeMachineId,
   );
+
+  // Render editor content when the active tab is an editor tab
+  function renderEditorContent() {
+    if (!activeTab || activeTab.type !== "editor" || !activeTab.editorData) {
+      return null;
+    }
+    return (
+      <div className="absolute inset-0 flex flex-col">
+        <div className="flex items-center gap-2 px-3 py-1 border-b border-border bg-secondary shrink-0">
+          <FileBreadcrumb
+            filePath={activeTab.editorData.filePath}
+            repoPath={activeTab.editorData.repoPath}
+          />
+        </div>
+        <div className="flex-1 min-h-0">
+          <CodeEditor
+            tabId={activeTab.id}
+            machineId={activeTab.editorData.machineId}
+            repoPath={activeTab.editorData.repoPath}
+            filePath={activeTab.editorData.filePath}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -179,7 +211,9 @@ export function CenterPanel() {
                 <DiffViewerWithComments activeDiffTab={activeDiffTab} />
               </div>
             )}
-            {!activeDiffTab && !activeMachineId && (
+            {/* Editor tab content */}
+            {!activeDiffTab && activeTab?.type === "editor" && renderEditorContent()}
+            {!activeDiffTab && !activeTab && !activeMachineId && (
               <div className="flex absolute inset-0 items-center justify-center">
                 <div className="text-center">
                   <h3 className="text-sm font-semibold text-primary-text">
@@ -192,23 +226,31 @@ export function CenterPanel() {
                 </div>
               </div>
             )}
-            {!activeDiffTab && activeMachineId && machineSessions.length === 0 && (
+            {!activeDiffTab && activeTab?.type !== "editor" && activeMachineId && machineSessions.length === 0 && (
               <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
                 No session selected. Click &quot;+&quot; to start a terminal session.
               </div>
             )}
+            {/* Keep all terminal views mounted (for state preservation) but only show the active one */}
             {machineSessions.map((s) => {
-              const active = s.id === activeSessionId && !activeDiffTab;
+              const isActiveTerminal =
+                !activeDiffTab &&
+                activeTab?.type === "terminal" &&
+                activeTab.terminalData?.sessionId === s.id;
               return (
                 <div
                   key={s.id}
                   className="absolute inset-0"
-                  style={active ? undefined : { transform: "translateX(-200%)", pointerEvents: "none" }}
+                  style={
+                    isActiveTerminal
+                      ? undefined
+                      : { transform: "translateX(-200%)", pointerEvents: "none" }
+                  }
                 >
                   <TerminalView
                     sessionId={s.id}
                     machineId={s.machine_id}
-                    isVisible={active}
+                    isVisible={isActiveTerminal}
                   />
                 </div>
               );

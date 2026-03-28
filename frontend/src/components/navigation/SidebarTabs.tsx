@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { GitBranch, FolderTree, Search } from "lucide-react";
 
 export type SidebarTabId = "git" | "files" | "search";
@@ -43,8 +42,8 @@ export function SidebarTabs({
 export function SidebarTabPlaceholder({ tab }: { tab: SidebarTabId }) {
   const messages: Record<SidebarTabId, string> = {
     git: "", // never shown -- git tab renders real content
-    files: "File tree coming in Plan 07",
-    search: "Search coming in Plan 07",
+    files: "", // now renders FileTree, but kept for completeness
+    search: "Search coming soon",
   };
 
   return (

@@ -5,6 +5,8 @@ import { useSessionStore, type CenterTab } from "../../stores/sessionStore";
 import { useEditorStore } from "../../stores/editorStore";
 import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
 import { apiPost } from "../../hooks/useApi";
+import { useWriteFile } from "../../hooks/useFileOperations";
+import { UnsavedDialog } from "../editor/UnsavedDialog";
 import type { TerminalSession, ClaudeStatus } from "../../types";
 
 function TabIcon({ tab, claudeStatus }: { tab: CenterTab; claudeStatus?: ClaudeStatus }) {
@@ -32,9 +34,15 @@ export function SessionTabBar() {
   const addSession = useSessionStore((s) => s.addSession);
   const removeSession = useSessionStore((s) => s.removeSession);
   const isDirty = useEditorStore((s) => s.isDirty);
+  const getContent = useEditorStore((s) => s.getContent);
+  const clearTab = useEditorStore((s) => s.clearTab);
+  const markClean = useEditorStore((s) => s.markClean);
+  const setOriginal = useEditorStore((s) => s.setOriginal);
   const claudeSessions = useClaudeSessionStore((s) => s.claudeSessions);
+  const writeFile = useWriteFile();
 
   const [creating, setCreating] = useState(false);
+  const [unsavedTab, setUnsavedTab] = useState<CenterTab | null>(null);
   const dragIndexRef = useRef<number | null>(null);
 
   if (!activeMachineId) return null;
@@ -72,10 +80,17 @@ export function SessionTabBar() {
   function handleCloseTab(e: React.MouseEvent, tab: CenterTab) {
     e.stopPropagation();
     if (tab.type === "editor" && isDirty(tab.id)) {
-      const confirmed = window.confirm(
-        `"${tab.label}" has unsaved changes. Close anyway?`,
-      );
-      if (!confirmed) return;
+      // Show unsaved dialog instead of window.confirm
+      setUnsavedTab(tab);
+      return;
+    }
+    performCloseTab(tab);
+  }
+
+  function performCloseTab(tab: CenterTab) {
+    // Clean up editor state
+    if (tab.type === "editor") {
+      clearTab(tab.id);
     }
     // For terminal tabs, also remove the session
     if (tab.type === "terminal" && tab.terminalData) {
@@ -83,6 +98,42 @@ export function SessionTabBar() {
       return;
     }
     closeTab(tab.id);
+  }
+
+  function handleUnsavedSave() {
+    if (!unsavedTab?.editorData) return;
+    const content = getContent(unsavedTab.id);
+    if (content !== undefined) {
+      writeFile.mutate(
+        {
+          machineId: unsavedTab.editorData.machineId,
+          filePath: unsavedTab.editorData.filePath,
+          content,
+          repoPath: unsavedTab.editorData.repoPath,
+        },
+        {
+          onSuccess: () => {
+            if (unsavedTab) {
+              markClean(unsavedTab.id);
+              setOriginal(unsavedTab.id, content);
+              performCloseTab(unsavedTab);
+              setUnsavedTab(null);
+            }
+          },
+        },
+      );
+    }
+  }
+
+  function handleUnsavedDiscard() {
+    if (unsavedTab) {
+      performCloseTab(unsavedTab);
+      setUnsavedTab(null);
+    }
+  }
+
+  function handleUnsavedCancel() {
+    setUnsavedTab(null);
   }
 
   function handleDragStart(e: React.DragEvent, index: number) {
@@ -101,8 +152,8 @@ export function SessionTabBar() {
     const fromIndex = dragIndexRef.current;
     if (fromIndex === null || fromIndex === dropIndex) return;
     // Map machine tab indices back to global tab indices
-    const fromGlobalIndex = tabs.indexOf(machineTabs[fromIndex]);
-    const toGlobalIndex = tabs.indexOf(machineTabs[dropIndex]);
+    const fromGlobalIndex = tabs.indexOf(machineTabs[fromIndex]!);
+    const toGlobalIndex = tabs.indexOf(machineTabs[dropIndex]!);
     if (fromGlobalIndex >= 0 && toGlobalIndex >= 0) {
       reorderTabs(fromGlobalIndex, toGlobalIndex);
     }
@@ -110,83 +161,95 @@ export function SessionTabBar() {
   }
 
   return (
-    <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
-      {machineTabs.map((tab, localIndex) => {
-        const isActive = tab.id === activeTabId;
-        // For terminal tabs, check for Claude session status
-        let claudeStatus: ClaudeStatus | undefined;
-        if (tab.type === "terminal" && tab.terminalData) {
-          const session = sessions.find(
-            (s) => s.id === tab.terminalData?.sessionId,
-          );
-          if (session?.session_type === "claude") {
-            const claudeMatch = claudeSessions.find(
-              (cs) =>
-                cs.machine_id === activeMachineId &&
-                cs.tmux_session === session.tmux_session_name,
+    <>
+      <div className="flex h-8 shrink-0 items-stretch bg-dominant border-b border-border overflow-x-auto">
+        {machineTabs.map((tab, localIndex) => {
+          const isActive = tab.id === activeTabId;
+          // For terminal tabs, check for Claude session status
+          let claudeStatus: ClaudeStatus | undefined;
+          if (tab.type === "terminal" && tab.terminalData) {
+            const session = sessions.find(
+              (s) => s.id === tab.terminalData?.sessionId,
             );
-            claudeStatus = claudeMatch?.status;
+            if (session?.session_type === "claude") {
+              const claudeMatch = claudeSessions.find(
+                (cs) =>
+                  cs.machine_id === activeMachineId &&
+                  cs.tmux_session === session.tmux_session_name,
+              );
+              claudeStatus = claudeMatch?.status;
+            }
           }
-        }
 
-        // Dirty indicator for editor tabs
-        const dirty = tab.type === "editor" && isDirty(tab.id);
+          // Dirty indicator for editor tabs
+          const dirty = tab.type === "editor" && isDirty(tab.id);
 
-        return (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            draggable
-            onDragStart={(e) => handleDragStart(e, localIndex)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, localIndex)}
-            className={`group flex shrink-0 items-center gap-1.5 px-2 text-xs transition-colors ${
-              isActive
-                ? "border-b-2 border-accent text-primary-text"
-                : "border-b-2 border-transparent text-muted hover:text-primary-text"
-            }`}
-            style={{ height: "32px" }}
-          >
-            <TabIcon tab={tab} claudeStatus={claudeStatus} />
-            {claudeStatus && (
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  claudeStatus === "waiting"
-                    ? "bg-warning animate-pulse"
-                    : claudeStatus === "running"
-                      ? "bg-success"
-                      : "bg-muted"
-                }`}
-              />
-            )}
-            {dirty && (
-              <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
-            )}
-            <span className="truncate max-w-[120px]">{tab.label}</span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => handleCloseTab(e, tab)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  handleCloseTab(e as unknown as React.MouseEvent, tab);
-                }
-              }}
-              className="ml-1 hidden rounded p-0.5 text-muted hover:bg-hover hover:text-primary-text group-hover:inline-flex"
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, localIndex)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, localIndex)}
+              className={`group flex shrink-0 items-center gap-1.5 px-2 text-xs transition-colors ${
+                isActive
+                  ? "border-b-2 border-accent text-primary-text"
+                  : "border-b-2 border-transparent text-muted hover:text-primary-text"
+              }`}
+              style={{ height: "32px" }}
             >
-              <X size={10} />
-            </span>
-          </button>
-        );
-      })}
-      <button
-        onClick={handleNewSession}
-        disabled={creating}
-        className="flex shrink-0 items-center px-2 text-muted hover:text-primary-text transition-colors disabled:opacity-50"
-        aria-label="New session"
-      >
-        <Plus size={12} />
-      </button>
-    </div>
+              <TabIcon tab={tab} claudeStatus={claudeStatus} />
+              {claudeStatus && (
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    claudeStatus === "waiting"
+                      ? "bg-warning animate-pulse"
+                      : claudeStatus === "running"
+                        ? "bg-success"
+                        : "bg-muted"
+                  }`}
+                />
+              )}
+              {dirty && (
+                <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+              )}
+              <span className="truncate max-w-[120px]">{tab.label}</span>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => handleCloseTab(e, tab)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    handleCloseTab(e as unknown as React.MouseEvent, tab);
+                  }
+                }}
+                className="ml-1 hidden rounded p-0.5 text-muted hover:bg-hover hover:text-primary-text group-hover:inline-flex"
+              >
+                <X size={10} />
+              </span>
+            </button>
+          );
+        })}
+        <button
+          onClick={handleNewSession}
+          disabled={creating}
+          className="flex shrink-0 items-center px-2 text-muted hover:text-primary-text transition-colors disabled:opacity-50"
+          aria-label="New session"
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+
+      {/* Unsaved changes dialog */}
+      {unsavedTab && (
+        <UnsavedDialog
+          fileName={unsavedTab.label}
+          onSave={handleUnsavedSave}
+          onDiscard={handleUnsavedDiscard}
+          onCancel={handleUnsavedCancel}
+        />
+      )}
+    </>
   );
 }

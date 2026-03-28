@@ -6,6 +6,7 @@ import { useRepoStore } from "../../stores/repoStore";
 import { RepoList } from "../git/RepoList";
 import { CommitTimeline } from "../git/CommitTimeline";
 import { ChangedFiles } from "../git/ChangedFiles";
+import { FileTree } from "../filetree/FileTree";
 import {
   SidebarTabs,
   SidebarTabPlaceholder,
@@ -104,6 +105,10 @@ export function Sidebar() {
                     </div>
                   )}
                 </div>
+              </div>
+            ) : activeSidebarTab === "files" ? (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <FileTree />
               </div>
             ) : (
               <SidebarTabPlaceholder tab={activeSidebarTab} />
