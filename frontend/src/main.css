@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @theme {
   --color-dominant: #0f1117;
   --color-secondary: #1a1d27;
