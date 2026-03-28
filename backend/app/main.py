@@ -12,6 +12,7 @@ from app.api.auth import router as auth_router
 from app.api.feed import router as feed_router
 from app.api.files import router as files_router
 from app.api.git import router as git_router
+from app.api.integrator import router as integrator_router
 from app.api.gsd_events import router as gsd_events_router
 from app.api.machines import router as machines_router
 from app.api.review import router as review_router
@@ -130,6 +131,7 @@ app.include_router(feed_router)
 app.include_router(files_router)
 app.include_router(git_router)
 app.include_router(gsd_events_router)
+app.include_router(integrator_router)
 app.include_router(machines_router)
 app.include_router(review_router)
 app.include_router(search_router)
