@@ -60,8 +60,8 @@
 
 ### Skills
 
-- [ ] **SKIL-01**: User can see available skills per repo and trigger them from the UI skills bar
-- [ ] **SKIL-02**: Skills match Claude Code's native skill model — any skill created in a Claude Code session is automatically available in Locus's UI
+- [x] **SKIL-01**: User can see available skills per repo and trigger them from the UI skills bar
+- [x] **SKIL-02**: Skills match Claude Code's native skill model — any skill created in a Claude Code session is automatically available in Locus's UI
 - [ ] **SKIL-03**: The Integrator skill is a built-in meta-skill that guides the user through building and deploying a new integration worker
 
 ### Auth & Security
@@ -154,8 +154,8 @@
 | UI-02 | Phase 2 | Pending |
 | UI-03 | Phase 1 | Complete |
 | UI-04 | Phase 1 | Complete |
-| SKIL-01 | Phase 4 | Pending |
-| SKIL-02 | Phase 4 | Pending |
+| SKIL-01 | Phase 4 | Complete |
+| SKIL-02 | Phase 4 | Complete |
 | SKIL-03 | Phase 4 | Pending |
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
