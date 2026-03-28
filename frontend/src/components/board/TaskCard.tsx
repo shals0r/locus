@@ -8,10 +8,14 @@ import {
   Ticket,
   Calendar,
   Globe,
+  GitCompareArrows,
+  Bot,
+  X,
 } from "lucide-react";
 import type { Task, FeedTier } from "../../types";
 import { useTransitionTask, useUpdateTask } from "../../hooks/useTaskQueries";
 import { useTaskStore } from "../../stores/taskStore";
+import { useSessionStore } from "../../stores/sessionStore";
 
 const TIER_BORDER: Record<FeedTier, string> = {
   now: "border-l-red-500",
@@ -36,6 +40,53 @@ function SourceIcon({ sourceType }: { sourceType: string | null }) {
     default:
       return <Globe size={size} className={cls} />;
   }
+}
+
+/**
+ * Detect if a task is associated with an MR/PR based on source_links URLs.
+ * Returns the source type ("github" or "gitlab") or null if not MR/PR.
+ */
+function detectMrSource(task: Task): "github" | "gitlab" | null {
+  if (!task.source_links) return null;
+  const urls = Object.values(task.source_links);
+  for (const url of urls) {
+    if (typeof url === "string") {
+      if (url.includes("github.com") && url.includes("/pull/")) return "github";
+      if (url.includes("gitlab.com") && url.includes("/merge_requests/"))
+        return "gitlab";
+      if (url.includes("gitlab") && url.includes("/merge_requests/"))
+        return "gitlab";
+    }
+  }
+  // Also check source_links keys
+  const keys = Object.keys(task.source_links);
+  for (const key of keys) {
+    if (key === "github" || key === "gitlab") {
+      const val = task.source_links[key];
+      if (typeof val === "string" && (val.includes("/pull/") || val.includes("/merge_requests/"))) {
+        return key as "github" | "gitlab";
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract MR/PR identifier from source_links URL.
+ */
+function extractMrId(task: Task): string | null {
+  if (!task.source_links) return null;
+  const urls = Object.values(task.source_links);
+  for (const url of urls) {
+    if (typeof url !== "string") continue;
+    // GitHub: /owner/repo/pull/123
+    const ghMatch = url.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
+    if (ghMatch) return `${ghMatch[1]}#${ghMatch[2]}`;
+    // GitLab: /project/merge_requests/123
+    const glMatch = url.match(/merge_requests\/(\d+)/);
+    if (glMatch) return glMatch[1] ?? null;
+  }
+  return null;
 }
 
 function isOlderThan24h(dateStr: string | null): boolean {
@@ -70,11 +121,15 @@ export function TaskCard({ task }: TaskCardProps) {
   const setStartFlowTaskId = useTaskStore((s) => s.setStartFlowTaskId);
   const startFlowTaskId = useTaskStore((s) => s.startFlowTaskId);
 
+  const openDiffTab = useSessionStore((s) => s.openDiffTab);
+
   const tierColor = TIER_BORDER[task.tier] ?? "border-l-gray-500";
   const isDone = task.status === "done";
   const isActive = task.status === "active";
   const isQueue = task.status === "queue";
   const faded = isDone && isOlderThan24h(task.completed_at);
+  const mrSource = detectMrSource(task);
+  const isMrTask = mrSource !== null;
 
   // Determine which source icon to show (from feed item's source_links keys)
   const sourceType: string | null =
@@ -115,6 +170,43 @@ export function TaskCard({ task }: TaskCardProps) {
   const handleCancelEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(false);
+  };
+
+  const handleViewDiff = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const mrId = extractMrId(task);
+    openDiffTab({
+      type: "commit",
+      machineId: task.machine_id ?? "local",
+      repoPath: task.repo_path ?? "",
+      commitSha: mrId ?? undefined,
+      label: `MR: ${task.title}`,
+    });
+  };
+
+  const handleAiReview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Open diff tab first, then the AI review is triggered separately
+    const mrId = extractMrId(task);
+    openDiffTab({
+      type: "commit",
+      machineId: task.machine_id ?? "local",
+      repoPath: task.repo_path ?? "",
+      commitSha: mrId ?? undefined,
+      label: `Review: ${task.title}`,
+    });
+  };
+
+  const handleApprove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Will be connected to useApprove mutation from useReviewApi when available
+    console.log("Approve MR for task:", task.id);
+  };
+
+  const handleRequestChanges = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Will open ReviewSubmitDialog with REQUEST_CHANGES event when available
+    console.log("Request changes for task:", task.id);
   };
 
   if (isEditing) {
@@ -238,6 +330,40 @@ export function TaskCard({ task }: TaskCardProps) {
           </p>
         )}
       </div>
+
+      {/* MR/PR action buttons - visible on hover for MR/PR-linked tasks */}
+      {isMrTask && isHovered && (
+        <div className="mt-1 flex items-center gap-1 border-t border-border/50 pt-1">
+          <button
+            title="View Diff"
+            className="rounded p-1 text-muted hover:bg-accent/20 hover:text-accent transition-colors"
+            onClick={handleViewDiff}
+          >
+            <GitCompareArrows size={14} />
+          </button>
+          <button
+            title="AI Review"
+            className="rounded p-1 text-muted hover:bg-purple-500/20 hover:text-purple-400 transition-colors"
+            onClick={handleAiReview}
+          >
+            <Bot size={14} />
+          </button>
+          <button
+            title="Approve"
+            className="rounded p-1 text-muted hover:bg-green-500/20 hover:text-green-400 transition-colors"
+            onClick={handleApprove}
+          >
+            <Check size={14} />
+          </button>
+          <button
+            title="Request Changes"
+            className="rounded p-1 text-muted hover:bg-red-500/20 hover:text-red-400 transition-colors"
+            onClick={handleRequestChanges}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
