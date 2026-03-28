@@ -131,7 +131,16 @@ Plans:
   1. User can interactively build a new integration worker with Claude via the Integrator skill and hot-deploy it without restarting the runner
   2. User can view, start, stop, and inspect logs of running integration workers from the UI, with automatic restart of crashed workers
   3. User can see available skills per repo, trigger them from the UI, and any skill created in a Claude Code session is automatically available in Locus
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — DB model extension + Phase 4 schemas + WorkerSupervisor service + mention detection migration + Docker config
+- [ ] 04-02-PLAN.md — Built-in adapter migration to standalone scripts + worker management API + log WebSocket + app lifecycle
+- [ ] 04-03-PLAN.md — Worker management frontend (stores, cards, log panel, quick config) in Settings page
+- [ ] 04-04-PLAN.md — Skill discovery backend + skill API + SkillBar frontend in sidebar
+- [ ] 04-05-PLAN.md — Integrator backend service (Claude Code CLI routing) + Integrator chat panel frontend
+- [ ] 04-06-PLAN.md — Visual and functional verification checkpoint
+
 **UI hint**: yes
 
 ### Phase 5: Host Agent
@@ -162,5 +171,5 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
 | 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
 | 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
 | 3. Code Review, Diff & Editing | 0/10 | Planned | - |
-| 4. Integrations Runner & Skills | 0/? | Not started | - |
+| 4. Integrations Runner & Skills | 0/6 | Planned | - |
 | 5. Host Agent | 0/? | Not started | - |
