@@ -101,17 +101,19 @@ export function useListDirectory(
         `/api/files/list?machine_id=${encodeURIComponent(machineId!)}&dir_path=${encodeURIComponent(dirPath!)}&depth=${depth}`,
       );
 
-      // When depth > 1, prime child directory caches from the flat response
+      // When depth > 1, prime ALL child directory caches from the flat response
       if (depth > 1 && listing.entries.length > 0) {
         const byParent = new Map<string, DirectoryEntry[]>();
+        const cleanRoot = dirPath!.replace(/\/$/, "");
+
         for (const entry of listing.entries) {
           const parent = entry.path.substring(0, entry.path.lastIndexOf("/"));
-          if (parent !== dirPath?.replace(/\/$/, "")) {
-            const existing = byParent.get(parent) ?? [];
-            existing.push(entry);
-            byParent.set(parent, existing);
-          }
+          const existing = byParent.get(parent) ?? [];
+          existing.push(entry);
+          byParent.set(parent, existing);
         }
+
+        // Prime cache for every directory level — expanding is instant
         for (const [parent, children] of byParent) {
           queryClient.setQueryData<DirectoryListing>(
             ["directory", machineId, parent],
@@ -119,19 +121,15 @@ export function useListDirectory(
           );
         }
 
-        // Return only direct children for this directory
-        const cleanRoot = dirPath!.replace(/\/$/, "");
-        const directChildren = listing.entries.filter((e) => {
-          const parent = e.path.substring(0, e.path.lastIndexOf("/"));
-          return parent === cleanRoot;
-        });
-        return { path: listing.path, entries: directChildren };
+        // Return only direct children for the requested directory
+        return { path: listing.path, entries: byParent.get(cleanRoot) ?? [] };
       }
 
       return listing;
     },
     enabled: !!machineId && !!dirPath,
-    staleTime: 30_000,
+    // Full tree is cached for 5 min — invalidated on file create/rename/delete
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -156,13 +154,9 @@ export function useCreateFile() {
         is_dir: isDir ?? false,
       }),
     onSuccess: (_data, variables) => {
-      // Invalidate parent directory listing
-      const parentDir = variables.filePath.substring(
-        0,
-        variables.filePath.lastIndexOf("/"),
-      );
+      // Invalidate all directory caches for this machine — triggers full tree re-fetch
       void queryClient.invalidateQueries({
-        queryKey: ["directory", variables.machineId, parentDir || "/"],
+        queryKey: ["directory", variables.machineId],
       });
     },
   });
@@ -187,7 +181,9 @@ export function useRenameFile() {
         new_path: newPath,
       }),
     onSuccess: (_data, variables) => {
-      // Invalidate parent directory listings for both old and new paths
+      void queryClient.invalidateQueries({
+        queryKey: ["directory", variables.machineId],
+      });
       const oldParent = variables.oldPath.substring(
         0,
         variables.oldPath.lastIndexOf("/"),
@@ -228,15 +224,9 @@ export function useDeleteFile() {
         `/api/files/delete?machine_id=${encodeURIComponent(machineId)}&file_path=${encodeURIComponent(filePath)}`,
       ),
     onSuccess: (_data, variables) => {
-      // Invalidate parent directory listing
-      const parentDir = variables.filePath.substring(
-        0,
-        variables.filePath.lastIndexOf("/"),
-      );
       void queryClient.invalidateQueries({
-        queryKey: ["directory", variables.machineId, parentDir || "/"],
+        queryKey: ["directory", variables.machineId],
       });
-      // Invalidate file content cache
       void queryClient.invalidateQueries({
         queryKey: ["file", variables.machineId, variables.filePath],
       });

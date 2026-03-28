@@ -118,7 +118,7 @@ async def write_file_endpoint(
 async def list_directory_endpoint(
     machine_id: str = Query(...),
     dir_path: str = Query(...),
-    depth: int = Query(1, ge=1, le=5),
+    depth: int = Query(1, ge=1, le=15),
     _user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DirectoryListing:
