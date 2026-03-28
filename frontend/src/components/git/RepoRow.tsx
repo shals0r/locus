@@ -5,6 +5,7 @@ import { BranchDropdown } from "./BranchDropdown";
 import { GitOperations } from "./GitOperations";
 import { GsdStateDisplay } from "./GsdState";
 import { GsdActions } from "./GsdActions";
+import { SkillBar } from "../skills/SkillBar";
 
 interface RepoRowProps {
   repo: RepoDetail;
@@ -97,6 +98,11 @@ export function RepoRow({ repo }: RepoRowProps) {
             repoPath={repo.repo_path}
           />
         </div>
+      )}
+
+      {/* Skill chips (only when repo is selected, auto-hides when empty) */}
+      {isSelected && (
+        <SkillBar machineId={repo.machine_id} repoPath={repo.repo_path} />
       )}
     </div>
   );
