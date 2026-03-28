@@ -66,15 +66,23 @@ async def ingest_webhook(
     body: IngestPayload,
     db: AsyncSession = Depends(get_db),
     x_locus_signature: str | None = Header(None),
+    x_locus_worker_secret: str | None = Header(None),
     authorization: str | None = Header(None),
 ) -> dict:
     """Ingest a feed item via webhook.
 
-    Auth: either X-Locus-Signature HMAC header or Bearer JWT token.
-    HMAC verification uses the source's configured webhook_secret.
-    If no HMAC signature, requires valid JWT token.
+    Auth: X-Locus-Worker-Secret (worker subprocess auth),
+    X-Locus-Signature (HMAC), or Bearer JWT token.
     """
-    if x_locus_signature:
+    if x_locus_worker_secret:
+        # Worker subprocess auth path
+        from app.services.worker_supervisor import get_worker_secret
+        if not hmac.compare_digest(x_locus_worker_secret, get_worker_secret()):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid worker secret",
+            )
+    elif x_locus_signature:
         # HMAC verification path
         raw_body = await request.body()
         # Look up webhook secret from settings or integration source

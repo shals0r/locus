@@ -8,6 +8,7 @@ All items flow through ingest_item() regardless of source.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.feed_item import FeedItem
+from app.models.integration_source import IntegrationSource
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,92 @@ def _classify_heuristic(source_type: str) -> str:
     return _SOURCE_TIER_FALLBACK.get(source_type, "follow_up")
 
 
+async def _get_source_for_type(
+    db: AsyncSession, source_type: str
+) -> IntegrationSource | None:
+    """Look up the first IntegrationSource matching a source_type."""
+    result = await db.execute(
+        select(IntegrationSource)
+        .where(IntegrationSource.source_type == source_type)
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _is_mentioned(item: dict, source: IntegrationSource) -> bool:
+    """Check if the user is @mentioned in the item content.
+
+    Moved from BasePollingAdapter for centralized mention detection.
+    Reads the user's configured usernames from source.config
+    (e.g., github_username, gitlab_username, jira_username, email).
+    Searches item title, snippet, body, and description for @username patterns.
+    Case-insensitive matching with word boundary.
+
+    Args:
+        item: Dict with title, snippet, body fields
+        source: IntegrationSource with config containing usernames
+
+    Returns:
+        True if the user is @mentioned in any searchable field.
+    """
+    config = source.config or {}
+
+    # Collect all usernames to check for mentions
+    usernames: list[str] = []
+    for key in (
+        "github_username",
+        "gitlab_username",
+        "jira_username",
+        "username",
+        "email",
+    ):
+        val = config.get(key)
+        if val:
+            usernames.append(val)
+
+    if not usernames:
+        return False
+
+    # Build searchable text from item fields
+    searchable_parts = []
+    for field_name in ("title", "snippet", "body", "description"):
+        val = item.get(field_name)
+        if val and isinstance(val, str):
+            searchable_parts.append(val)
+
+    if not searchable_parts:
+        return False
+
+    text = " ".join(searchable_parts).lower()
+
+    # Check for @username mentions (case-insensitive)
+    for username in usernames:
+        pattern = rf"@{re.escape(username.lower())}\b"
+        if re.search(pattern, text):
+            return True
+        # Also check for plain username mentions in review/assignee contexts
+        if username.lower() in text:
+            return True
+
+    return False
+
+
+def _elevate_tier_if_mentioned(
+    item: dict, source: IntegrationSource, tier: str
+) -> str:
+    """Elevate tier if the user is @mentioned. Returns the new tier string.
+
+    Moved from BasePollingAdapter for centralized mention detection.
+    If mentioned and tier is prep/follow_up/review/None -> "respond".
+    If already now/respond -> leave as-is.
+    """
+    if not _is_mentioned(item, source):
+        return tier
+    if tier in ("now", "respond"):
+        return tier
+    return "respond"
+
+
 async def ingest_item(db: AsyncSession, payload: dict) -> FeedItem:
     """Ingest a feed item with upsert dedup.
 
@@ -141,6 +229,14 @@ async def ingest_item(db: AsyncSession, payload: dict) -> FeedItem:
             snippet=payload.get("snippet"),
             source_type=payload["source_type"],
         )
+
+    # Centralized mention detection: elevate tier if user is @mentioned
+    try:
+        source = await _get_source_for_type(db, payload["source_type"])
+        if source:
+            tier = _elevate_tier_if_mentioned(payload, source, tier)
+    except Exception as exc:
+        logger.debug("Mention detection skipped: %s", exc)
 
     values = {
         "source_type": payload["source_type"],
