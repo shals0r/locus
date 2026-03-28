@@ -4,9 +4,10 @@ import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore, type CenterTab } from "../../stores/sessionStore";
 import { useEditorStore } from "../../stores/editorStore";
 import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
-import { apiPost } from "../../hooks/useApi";
+import { apiPost, apiPatch, apiDelete } from "../../hooks/useApi";
 import { useWriteFile } from "../../hooks/useFileOperations";
 import { UnsavedDialog } from "../editor/UnsavedDialog";
+import { CloseSessionDialog } from "../common/CloseSessionDialog";
 import type { TerminalSession, ClaudeStatus } from "../../types";
 
 function TabIcon({ tab, claudeStatus }: { tab: CenterTab; claudeStatus?: ClaudeStatus }) {
@@ -43,6 +44,7 @@ export function SessionTabBar() {
 
   const [creating, setCreating] = useState(false);
   const [unsavedTab, setUnsavedTab] = useState<CenterTab | null>(null);
+  const [closingTerminalTab, setClosingTerminalTab] = useState<CenterTab | null>(null);
   const dragIndexRef = useRef<number | null>(null);
 
   if (!activeMachineId) return null;
@@ -80,24 +82,46 @@ export function SessionTabBar() {
   function handleCloseTab(e: React.MouseEvent, tab: CenterTab) {
     e.stopPropagation();
     if (tab.type === "editor" && isDirty(tab.id)) {
-      // Show unsaved dialog instead of window.confirm
       setUnsavedTab(tab);
+      return;
+    }
+    if (tab.type === "terminal" && tab.terminalData) {
+      setClosingTerminalTab(tab);
       return;
     }
     performCloseTab(tab);
   }
 
   function performCloseTab(tab: CenterTab) {
-    // Clean up editor state
     if (tab.type === "editor") {
       clearTab(tab.id);
     }
-    // For terminal tabs, also remove the session
     if (tab.type === "terminal" && tab.terminalData) {
       removeSession(tab.terminalData.sessionId);
-      return;
     }
     closeTab(tab.id);
+  }
+
+  async function handleDetach() {
+    if (!closingTerminalTab?.terminalData) return;
+    try {
+      await apiPatch(`/api/sessions/${closingTerminalTab.terminalData.sessionId}/detach`);
+    } catch (err) {
+      console.error("Failed to detach session:", err);
+    }
+    performCloseTab(closingTerminalTab);
+    setClosingTerminalTab(null);
+  }
+
+  async function handleKill() {
+    if (!closingTerminalTab?.terminalData) return;
+    try {
+      await apiDelete(`/api/sessions/${closingTerminalTab.terminalData.sessionId}`);
+    } catch (err) {
+      console.error("Failed to kill session:", err);
+    }
+    performCloseTab(closingTerminalTab);
+    setClosingTerminalTab(null);
   }
 
   function handleUnsavedSave() {
@@ -250,6 +274,15 @@ export function SessionTabBar() {
           onCancel={handleUnsavedCancel}
         />
       )}
+
+      {/* Terminal close dialog (detach/kill) */}
+      <CloseSessionDialog
+        open={!!closingTerminalTab}
+        sessionName={closingTerminalTab?.label ?? "session"}
+        onDetach={handleDetach}
+        onKill={handleKill}
+        onCancel={() => setClosingTerminalTab(null)}
+      />
     </>
   );
 }
