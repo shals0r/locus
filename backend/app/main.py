@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.ai_review import router as ai_review_router
 from app.api.auth import router as auth_router
 from app.api.feed import router as feed_router
 from app.api.files import router as files_router
@@ -122,6 +123,7 @@ app.add_middleware(
 )
 
 
+app.include_router(ai_review_router)
 app.include_router(auth_router)
 app.include_router(feed_router)
 app.include_router(git_router)
