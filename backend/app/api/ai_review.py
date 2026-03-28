@@ -1,18 +1,15 @@
-"""AI review API endpoint.
+"""AI review API: diff review and contextual chat endpoints.
 
-Exposes the AI review service for triggering code reviews from the frontend.
-Returns structured annotations that the frontend renders as gutter icons and
-inline previews in the diff viewer.
+Provides AI-powered code review annotation generation and a contextual
+chat interface where users can discuss review findings with Claude.
 """
-
-from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
-from app.services import ai_review_service
+from app.services.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -20,70 +17,89 @@ router = APIRouter(prefix="/api/review", tags=["ai-review"])
 
 
 # ---------------------------------------------------------------------------
-# Request / Response schemas
+# Request / response schemas
 # ---------------------------------------------------------------------------
 
+
 class AiReviewRequest(BaseModel):
-    """Request body for triggering an AI code review."""
-    diff_text: str = Field(..., description="The unified diff text to review")
-    custom_prompt: str | None = Field(
-        default=None,
-        description="Optional custom instructions to focus the review",
-    )
+    """Request body for AI diff review."""
+    diff_text: str
+    custom_prompt: str | None = None
 
 
 class AnnotationItem(BaseModel):
-    """A single review annotation returned by the AI."""
     id: str
     file: str
     line: int
-    severity: str = Field(description="One of: error, warning, suggestion, info")
+    severity: str  # error | warning | suggestion | info
     comment: str
 
 
 class AiReviewResponse(BaseModel):
-    """Response from the AI review endpoint."""
     annotations: list[AnnotationItem]
+
+
+class ChatRequest(BaseModel):
+    """Request body for contextual review chat."""
+    messages: list[dict]
+    context: str
+
+
+class ChatResponse(BaseModel):
+    response: str
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.post("/ai-review", response_model=AiReviewResponse)
-async def ai_review(request: AiReviewRequest) -> AiReviewResponse:
-    """Trigger an AI code review on the provided diff text.
+async def ai_review(
+    body: AiReviewRequest,
+    _user: dict = Depends(get_current_user),
+) -> AiReviewResponse:
+    """Trigger AI review on a diff.
 
-    Sends the diff to Claude for analysis and returns structured annotations
-    with file, line, severity, and comment for each finding.
-
-    Returns 503 if the LLM API key is not configured.
-    Timeout: 120s for large diffs.
+    Calls ai_review_service.review_diff() to generate structured annotations.
+    Returns 503 if LLM key is not configured.
     """
     try:
-        annotations = await ai_review_service.review_diff(
-            diff_text=request.diff_text,
-            custom_prompt=request.custom_prompt,
+        from app.services.ai_review_service import review_diff
+        annotations = await review_diff(body.diff_text, body.custom_prompt)
+        return AiReviewResponse(annotations=annotations)
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI review service not available. Ensure ai_review_service is configured.",
         )
-    except ValueError as exc:
-        # LLM key not configured
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("AI review failed: %s", exc)
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI review failed: {exc}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=str(exc))
 
-    return AiReviewResponse(
-        annotations=[
-            AnnotationItem(
-                id=a.get("id", ""),
-                file=a.get("file", ""),
-                line=a.get("line", 0),
-                severity=a.get("severity", "info"),
-                comment=a.get("comment", ""),
-            )
-            for a in annotations
-        ]
-    )
+
+@router.post("/chat", response_model=ChatResponse)
+async def review_chat(
+    body: ChatRequest,
+    _user: dict = Depends(get_current_user),
+) -> ChatResponse:
+    """Contextual chat about a code review.
+
+    Accepts conversation history and a context string that includes
+    diff text, annotations, and existing comments. The frontend builds
+    the context string from the current review state.
+
+    Returns the assistant's response message.
+    """
+    try:
+        from app.services.ai_review_service import chat_about_review
+        response_text = await chat_about_review(body.messages, body.context)
+        return ChatResponse(response=response_text)
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI review service not available. Ensure ai_review_service is configured.",
+        )
+    except Exception as exc:
+        logger.error("Review chat failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))

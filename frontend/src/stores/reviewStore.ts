@@ -1,98 +1,85 @@
 import { create } from "zustand";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type AnnotationSeverity = "error" | "warning" | "suggestion" | "info";
-
 export interface ReviewAnnotation {
   id: string;
   file: string;
   line: number;
-  severity: AnnotationSeverity;
+  severity: "error" | "warning" | "suggestion" | "info";
   comment: string;
-  /** Whether this annotation is selected for batch post */
-  selected: boolean;
+}
+
+export interface CommentThread {
+  id: string;
+  file: string;
+  line: number;
+  author: string;
+  body: string;
+  created_at: string;
+  replies: Array<{
+    id: string;
+    author: string;
+    body: string;
+    created_at: string;
+  }>;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
 }
 
 interface ReviewState {
-  /** All annotations from the AI review */
   annotations: ReviewAnnotation[];
-  /** Whether the annotation panel is open */
+  comments: CommentThread[];
+  reviewChatMessages: ChatMessage[];
+  isReviewing: boolean;
   annotationPanelOpen: boolean;
-  /** Currently focused annotation ID (for scroll-to-line) */
-  focusedAnnotationId: string | null;
+  chatPanelOpen: boolean;
 
-  /** Replace all annotations (from AI review response) */
   setAnnotations: (annotations: ReviewAnnotation[]) => void;
-  /** Clear all annotations */
-  clearAnnotations: () => void;
-  /** Update a single annotation's comment text */
+  setComments: (comments: CommentThread[]) => void;
+  addAnnotation: (annotation: ReviewAnnotation) => void;
   updateAnnotation: (id: string, comment: string) => void;
-  /** Toggle selection of a single annotation */
-  toggleAnnotationSelected: (id: string) => void;
-  /** Select/deselect all annotations */
-  selectAll: (selected: boolean) => void;
-  /** Get selected annotations */
-  getSelectedAnnotations: () => ReviewAnnotation[];
-
-  /** Open/close the annotation panel */
-  setAnnotationPanelOpen: (open: boolean) => void;
-  /** Toggle the annotation panel */
+  removeAnnotation: (id: string) => void;
   toggleAnnotationPanel: () => void;
-  /** Set the focused annotation (for scroll-to-line) */
-  setFocusedAnnotation: (id: string | null) => void;
+  toggleChatPanel: () => void;
+  addChatMessage: (message: ChatMessage) => void;
+  clearChatMessages: () => void;
+  setIsReviewing: (value: boolean) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Store
-// ---------------------------------------------------------------------------
-
-export const useReviewStore = create<ReviewState>((set, get) => ({
+export const useReviewStore = create<ReviewState>((set) => ({
   annotations: [],
+  comments: [],
+  reviewChatMessages: [],
+  isReviewing: false,
   annotationPanelOpen: false,
-  focusedAnnotationId: null,
+  chatPanelOpen: false,
 
-  setAnnotations: (annotations) =>
-    set({
-      annotations: annotations.map((a) => ({ ...a, selected: false })),
-      annotationPanelOpen: annotations.length > 0,
-    }),
-
-  clearAnnotations: () =>
-    set({
-      annotations: [],
-      annotationPanelOpen: false,
-      focusedAnnotationId: null,
-    }),
-
+  setAnnotations: (annotations) => set({ annotations }),
+  setComments: (comments) => set({ comments }),
+  addAnnotation: (annotation) =>
+    set((s) => ({ annotations: [...s.annotations, annotation] })),
   updateAnnotation: (id, comment) =>
     set((s) => ({
       annotations: s.annotations.map((a) =>
         a.id === id ? { ...a, comment } : a,
       ),
     })),
-
-  toggleAnnotationSelected: (id) =>
+  removeAnnotation: (id) =>
     set((s) => ({
-      annotations: s.annotations.map((a) =>
-        a.id === id ? { ...a, selected: !a.selected } : a,
-      ),
+      annotations: s.annotations.filter((a) => a.id !== id),
     })),
-
-  selectAll: (selected) =>
-    set((s) => ({
-      annotations: s.annotations.map((a) => ({ ...a, selected })),
-    })),
-
-  getSelectedAnnotations: () =>
-    get().annotations.filter((a) => a.selected),
-
-  setAnnotationPanelOpen: (open) => set({ annotationPanelOpen: open }),
-
   toggleAnnotationPanel: () =>
     set((s) => ({ annotationPanelOpen: !s.annotationPanelOpen })),
-
-  setFocusedAnnotation: (id) => set({ focusedAnnotationId: id }),
+  toggleChatPanel: () =>
+    set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
+  addChatMessage: (message) =>
+    set((s) => ({
+      reviewChatMessages: [...s.reviewChatMessages, message],
+    })),
+  clearChatMessages: () => set({ reviewChatMessages: [] }),
+  setIsReviewing: (value) => set({ isReviewing: value }),
 }));

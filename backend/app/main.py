@@ -19,6 +19,7 @@ from app.api.search import router as search_router
 from app.api.sessions import router as sessions_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
+from app.api.ai_review import router as ai_review_router
 from app.api.upload import router as upload_router
 from app.database import engine
 from app.models import Base

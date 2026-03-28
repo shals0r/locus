@@ -1,147 +1,142 @@
-"""AI review service for code review using the Anthropic API.
+"""AI review service: diff review and contextual chat via LLM.
 
-Sends diffs to Claude for structured annotation responses, and supports
-contextual chat about review findings. Follows the same httpx + Anthropic
-API pattern used in feed_service.py.
+Provides review_diff() for generating structured annotations from diffs,
+and chat_about_review() for contextual conversation about review findings.
 """
 
-from __future__ import annotations
-
-import json
 import logging
+import os
 import uuid
-from typing import Any
-
-import httpx
-
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_REVIEW_SYSTEM_PROMPT = (
-    "You are a senior code reviewer. Analyze the following git diff and provide "
-    "specific, actionable review comments. For each issue found, respond with a "
-    "JSON array of objects with these fields: file (the file path), line (the line "
-    "number in the new file), severity (one of: error, warning, suggestion, info), "
-    "comment (your review comment). Focus on bugs, security issues, performance "
-    "problems, and code quality. Respond ONLY with the JSON array, no other text."
-)
-
-_CHAT_SYSTEM_PROMPT = (
-    "You are a code review assistant. You have context of a code review including "
-    "the diff, existing annotations, and comments. Help the user understand the "
-    "code, draft responses to comments, and discuss review findings."
-)
-
 
 async def review_diff(
-    diff_text: str, custom_prompt: str | None = None
-) -> list[dict[str, Any]]:
-    """Send a diff to Claude and get structured review annotations back.
+    diff_text: str,
+    custom_prompt: str | None = None,
+) -> list[dict]:
+    """Review a diff using Claude and return structured annotations.
 
-    Args:
-        diff_text: The unified diff text to review.
-        custom_prompt: Optional additional reviewer instructions appended
-                       to the system prompt.
-
-    Returns:
-        List of annotation dicts with keys: id, file, line, severity, comment.
-        Returns empty list if parsing fails (logged as warning).
-
-    Raises:
-        ValueError: If LLM API key is not configured.
+    Returns a list of annotation dicts with: id, file, line, severity, comment.
+    Raises if LLM key is not configured.
     """
-    if not settings.llm_api_key:
-        raise ValueError("LLM API key not configured")
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set. Configure it to enable AI review.")
 
-    system_prompt = _REVIEW_SYSTEM_PROMPT
+    # Build the review prompt
+    system_prompt = (
+        "You are a senior code reviewer. Analyze the following diff and return "
+        "structured annotations. For each finding, provide:\n"
+        "- file: the file path\n"
+        "- line: the line number in the new file\n"
+        "- severity: one of error, warning, suggestion, info\n"
+        "- comment: a clear, actionable review comment\n\n"
+        "Return ONLY a JSON array of annotation objects."
+    )
     if custom_prompt:
-        system_prompt += f"\n\nAdditional reviewer instructions: {custom_prompt}"
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            settings.llm_api_url,
-            headers={
-                "x-api-key": settings.llm_api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": settings.llm_model,
-                "max_tokens": 4096,
-                "system": system_prompt,
-                "messages": [{"role": "user", "content": diff_text}],
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
-
-    # Extract text from Anthropic API response format
-    raw_text = data["content"][0]["text"].strip()
+        system_prompt += f"\n\nAdditional instructions: {custom_prompt}"
 
     try:
-        annotations = json.loads(raw_text)
-    except json.JSONDecodeError as exc:
-        logger.warning(
-            "Failed to parse AI review response as JSON: %s. Raw: %.200s",
-            exc,
-            raw_text,
-        )
-        return []
+        import httpx
 
-    if not isinstance(annotations, list):
-        logger.warning(
-            "AI review response is not a list: %s", type(annotations).__name__
-        )
-        return []
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 4096,
+                    "system": system_prompt,
+                    "messages": [{"role": "user", "content": diff_text}],
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-    # Add UUID id to each annotation if not present
-    for annotation in annotations:
-        if "id" not in annotation:
-            annotation["id"] = str(uuid.uuid4())
+            # Parse the response text as JSON annotations
+            import json
+            content_text = data["content"][0]["text"]
+            # Strip markdown code fences if present
+            if content_text.strip().startswith("```"):
+                lines = content_text.strip().split("\n")
+                lines = [l for l in lines if not l.strip().startswith("```")]
+                content_text = "\n".join(lines)
 
-    return annotations
+            raw_annotations = json.loads(content_text)
+            annotations = []
+            for ann in raw_annotations:
+                annotations.append({
+                    "id": str(uuid.uuid4()),
+                    "file": ann.get("file", "unknown"),
+                    "line": ann.get("line", 1),
+                    "severity": ann.get("severity", "info"),
+                    "comment": ann.get("comment", ""),
+                })
+            return annotations
+    except Exception as exc:
+        logger.error("AI review LLM call failed: %s", exc)
+        raise
 
 
 async def chat_about_review(
-    messages: list[dict[str, Any]], context: str
+    messages: list[dict],
+    context: str,
 ) -> str:
-    """Contextual chat about a code review.
-
-    Takes conversation messages and review context (diff + annotations +
-    comments) to enable discussion about review findings.
+    """Chat about a code review with full context.
 
     Args:
-        messages: List of conversation messages [{"role": "user"|"assistant", "content": str}]
-        context: Review context string (diff text, annotations, existing comments).
+        messages: Conversation history as list of {role, content} dicts.
+        context: Context string containing diff text, annotations, and comments.
 
     Returns:
-        The assistant's text response.
-
-    Raises:
-        ValueError: If LLM API key is not configured.
+        The assistant's response text.
     """
-    if not settings.llm_api_key:
-        raise ValueError("LLM API key not configured")
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set. Configure it to enable review chat.")
 
-    system_prompt = f"{_CHAT_SYSTEM_PROMPT}\n\n--- Review Context ---\n{context}"
+    system_prompt = (
+        "You are a helpful code review assistant. You have full context of "
+        "the code review including the diff, annotations, and existing comments. "
+        "Answer questions about the code, explain findings, suggest improvements, "
+        "and help draft responses to review comments.\n\n"
+        f"Review Context:\n{context}"
+    )
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            settings.llm_api_url,
-            headers={
-                "x-api-key": settings.llm_api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": settings.llm_model,
-                "max_tokens": 4096,
-                "system": system_prompt,
-                "messages": messages,
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
+    # Build messages for the API
+    api_messages = []
+    for msg in messages:
+        api_messages.append({
+            "role": msg.get("role", "user"),
+            "content": msg.get("content", ""),
+        })
 
-    return data["content"][0]["text"].strip()
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 2048,
+                    "system": system_prompt,
+                    "messages": api_messages,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["content"][0]["text"]
+    except Exception as exc:
+        logger.error("Review chat LLM call failed: %s", exc)
+        raise
