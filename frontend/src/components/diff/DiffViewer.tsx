@@ -1,12 +1,23 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { apiGet } from "../../hooks/useApi";
+import { CommentThread as CommentThreadComponent } from "./CommentThread";
+import type { CommentThread } from "../../stores/reviewStore";
 
 interface DiffViewerProps {
   machineId: string;
   repoPath: string;
   filePath?: string;
   commitSha?: string;
+  /** Optional: pre-fetched diff text (for MR/PR diffs) */
+  diffText?: string;
+  /** Optional: MR/PR comment threads to render inline */
+  comments?: CommentThread[];
+  /** Optional: task ID for comment reply mutations */
+  taskId?: string;
+  /** Whether this is an MR/PR diff (enables comment features) */
+  isMrDiff?: boolean;
 }
 
 interface DiffResponse {
@@ -52,11 +63,15 @@ export function DiffViewer({
   repoPath,
   filePath,
   commitSha,
+  diffText: externalDiffText,
+  comments,
+  taskId,
+  isMrDiff,
 }: DiffViewerProps) {
   const isFileDiff = !!filePath;
   const isCommitDiff = !!commitSha;
-
   const isCommitFileDiff = isCommitDiff && isFileDiff;
+  const hasExternalDiff = !!externalDiffText;
 
   const queryKey = isCommitFileDiff
     ? ["git-commit-file-diff", machineId, repoPath, commitSha, filePath]
@@ -105,17 +120,33 @@ export function DiffViewer({
   };
 
   const {
-    data: diffText,
+    data: fetchedDiffText,
     isLoading,
     error,
   } = useQuery({
     queryKey,
     queryFn,
-    enabled: isFileDiff || isCommitDiff,
+    enabled: !hasExternalDiff && (isFileDiff || isCommitDiff),
     staleTime: 10_000,
   });
 
-  if (!isFileDiff && !isCommitDiff) {
+  const effectiveDiffText = externalDiffText ?? fetchedDiffText;
+
+  // Build a map of line number -> comments for inline rendering
+  const commentsByLine = useMemo(() => {
+    if (!comments || comments.length === 0) return new Map<number, CommentThread[]>();
+    const map = new Map<number, CommentThread[]>();
+    for (const thread of comments) {
+      if (thread.line != null) {
+        const existing = map.get(thread.line) ?? [];
+        existing.push(thread);
+        map.set(thread.line, existing);
+      }
+    }
+    return map;
+  }, [comments]);
+
+  if (!hasExternalDiff && !isFileDiff && !isCommitDiff) {
     return (
       <div className="flex h-full items-center justify-center text-muted text-sm">
         Select a file or commit to view its diff.
@@ -123,7 +154,7 @@ export function DiffViewer({
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !hasExternalDiff) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted" />
@@ -132,7 +163,7 @@ export function DiffViewer({
     );
   }
 
-  if (error) {
+  if (error && !hasExternalDiff) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
@@ -145,7 +176,7 @@ export function DiffViewer({
     );
   }
 
-  if (!diffText) {
+  if (!effectiveDiffText) {
     return (
       <div className="flex h-full items-center justify-center text-muted text-sm">
         No changes
@@ -153,13 +184,27 @@ export function DiffViewer({
     );
   }
 
-  const lines = diffText.split("\n");
+  const lines = effectiveDiffText.split("\n");
 
   return (
     <div className="h-full overflow-auto font-mono" style={{ background: "#1a1b26" }}>
-      {lines.map((line, i) => (
-        <DiffLine key={i} line={line} lineNum={i + 1} />
-      ))}
+      {lines.map((line, i) => {
+        const lineNum = i + 1;
+        const lineComments = isMrDiff ? commentsByLine.get(lineNum) : undefined;
+        return (
+          <div key={i}>
+            <DiffLine line={line} lineNum={lineNum} />
+            {lineComments && taskId && lineComments.map((thread) => (
+              <div key={thread.id} className="px-14 py-1">
+                <CommentThreadComponent
+                  thread={thread}
+                  taskId={taskId}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

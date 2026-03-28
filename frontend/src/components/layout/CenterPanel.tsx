@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle, X, FileCode, GitCommitHorizontal } from "lucide-react";
+import { AlertTriangle, X, FileCode, GitCommitHorizontal, GitPullRequest } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { apiGet } from "../../hooks/useApi";
 import { useTasks } from "../../hooks/useTaskQueries";
+import { useMrComments } from "../../hooks/useReviewApi";
 import type { TerminalSession } from "../../types";
 import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
@@ -13,6 +14,30 @@ import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 import { DiffViewer } from "../diff/DiffViewer";
+import { MrMetadataHeader } from "../diff/MrMetadataHeader";
+import type { DiffTab } from "../../stores/sessionStore";
+
+/**
+ * Wrapper that loads MR/PR comments and passes them to DiffViewer.
+ * For local diffs, passes through without comment loading.
+ */
+function DiffViewerWithComments({ activeDiffTab }: { activeDiffTab: DiffTab }) {
+  const { data: mrComments } = useMrComments(
+    activeDiffTab.isMrDiff ? activeDiffTab.taskId : undefined,
+  );
+
+  return (
+    <DiffViewer
+      machineId={activeDiffTab.machineId}
+      repoPath={activeDiffTab.repoPath}
+      filePath={activeDiffTab.filePath}
+      commitSha={activeDiffTab.commitSha}
+      comments={mrComments ?? undefined}
+      taskId={activeDiffTab.taskId}
+      isMrDiff={activeDiffTab.isMrDiff}
+    />
+  );
+}
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -126,7 +151,9 @@ export function CenterPanel() {
           <SessionTabBar />
           {activeDiffTab && (
             <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
-              {activeDiffTab.type === "file" ? (
+              {activeDiffTab.type === "mr" ? (
+                <GitPullRequest size={12} className="text-accent shrink-0" />
+              ) : activeDiffTab.type === "file" ? (
                 <FileCode size={12} className="text-accent shrink-0" />
               ) : (
                 <GitCommitHorizontal size={12} className="text-accent shrink-0" />
@@ -143,15 +170,13 @@ export function CenterPanel() {
               </button>
             </div>
           )}
+          {activeDiffTab?.isMrDiff && activeDiffTab.taskId && (
+            <MrMetadataHeader taskId={activeDiffTab.taskId} />
+          )}
           <div className="relative flex-1 overflow-hidden">
             {activeDiffTab && (
               <div className="absolute inset-0">
-                <DiffViewer
-                  machineId={activeDiffTab.machineId}
-                  repoPath={activeDiffTab.repoPath}
-                  filePath={activeDiffTab.filePath}
-                  commitSha={activeDiffTab.commitSha}
-                />
+                <DiffViewerWithComments activeDiffTab={activeDiffTab} />
               </div>
             )}
             {!activeDiffTab && !activeMachineId && (

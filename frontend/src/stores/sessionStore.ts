@@ -2,12 +2,16 @@ import { create } from "zustand";
 import type { TerminalSession } from "../types";
 
 export interface DiffTab {
-  type: "file" | "commit";
+  type: "file" | "commit" | "mr";
   machineId: string;
   repoPath: string;
   filePath?: string;
   commitSha?: string;
   label: string;
+  /** Task ID for MR/PR diffs (enables metadata header and comments) */
+  taskId?: string;
+  /** Whether this is an MR/PR diff */
+  isMrDiff?: boolean;
 }
 
 interface SessionState {
