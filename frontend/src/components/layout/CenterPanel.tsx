@@ -5,7 +5,6 @@ import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { apiGet } from "../../hooks/useApi";
 import { useTasks } from "../../hooks/useTaskQueries";
-import { useMrComments } from "../../hooks/useReviewApi";
 import type { TerminalSession } from "../../types";
 import { isLocalMachine } from "../../types";
 import { MachineTabBar } from "../navigation/MachineTabBar";
@@ -14,32 +13,8 @@ import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
 import { DiffViewer } from "../diff/DiffViewer";
-import { MrMetadataHeader } from "../diff/MrMetadataHeader";
 import { CodeEditor } from "../editor/CodeEditor";
 import { FileBreadcrumb } from "../editor/FileBreadcrumb";
-import type { DiffTab } from "../../stores/sessionStore";
-
-/**
- * Wrapper that loads MR/PR comments and passes them to DiffViewer.
- * For local diffs, passes through without comment loading.
- */
-function DiffViewerWithComments({ activeDiffTab }: { activeDiffTab: DiffTab }) {
-  const { data: mrComments } = useMrComments(
-    activeDiffTab.isMrDiff ? activeDiffTab.taskId : undefined,
-  );
-
-  return (
-    <DiffViewer
-      machineId={activeDiffTab.machineId}
-      repoPath={activeDiffTab.repoPath}
-      filePath={activeDiffTab.filePath}
-      commitSha={activeDiffTab.commitSha}
-      comments={mrComments ?? undefined}
-      taskId={activeDiffTab.taskId}
-      isMrDiff={activeDiffTab.isMrDiff}
-    />
-  );
-}
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -52,14 +27,12 @@ export function CenterPanel() {
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const activeTask = useTaskStore((s) => s.activeTask);
   const setActiveTask = useTaskStore((s) => s.setActiveTask);
-  const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
-  const openDiffTab = useSessionStore((s) => s.openDiffTab);
-  const closeDiffTab = useSessionStore((s) => s.closeDiffTab);
-
-  // Unified tab system
+  // Unified tab system — single source of truth for all tab types
   const tabs = useSessionStore((s) => s.tabs);
   const activeTabId = useSessionStore((s) => s.activeTabId);
   const activeTab = tabs.find((t) => t.id === activeTabId);
+  const closeTab = useSessionStore((s) => s.closeTab);
+  const openEditorTab = useSessionStore((s) => s.openEditorTab);
 
   // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
@@ -183,33 +156,22 @@ export function CenterPanel() {
         <>
           {activeTask && <ContextStrip />}
           <SessionTabBar />
-          {activeDiffTab && (
+          {activeTab?.type === "diff" && activeTab.diffData && (
             <>
               <div className="flex h-7 shrink-0 items-center gap-2 bg-secondary border-b border-border px-2">
-                {activeDiffTab.type === "mr" ? (
+                {activeTab.diffData.sourceType === "mr" ? (
                   <GitPullRequest size={12} className="text-accent shrink-0" />
-                ) : activeDiffTab.type === "file" ? (
+                ) : activeTab.diffData.sourceType === "file" ? (
                   <FileCode size={12} className="text-accent shrink-0" />
                 ) : (
                   <GitCommitHorizontal size={12} className="text-accent shrink-0" />
                 )}
                 <span className="text-xs font-medium text-accent truncate">
-                  {activeDiffTab.label}
+                  {activeTab.label}
                 </span>
-                {/* Open in Editor button -- opens file in a separate editor tab */}
-                {activeDiffTab.filePath && (
+                {activeTab.diffData.filePath && (
                   <button
-                    onClick={() => {
-                      // Open the file as a new diff tab of type "file" (editor tab)
-                      // This creates an independent tab for the same file
-                      openDiffTab({
-                        type: "file",
-                        machineId: activeDiffTab.machineId,
-                        repoPath: activeDiffTab.repoPath,
-                        filePath: activeDiffTab.filePath,
-                        label: `[Edit] ${activeDiffTab.filePath?.split("/").pop() ?? activeDiffTab.label}`,
-                      });
-                    }}
+                    onClick={() => openEditorTab(activeTab.diffData!.machineId, activeTab.diffData!.repoPath, activeTab.diffData!.filePath!)}
                     className="ml-1 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted hover:text-primary-text hover:bg-hover transition-colors"
                     title="Open in Editor"
                   >
@@ -218,33 +180,33 @@ export function CenterPanel() {
                   </button>
                 )}
                 <button
-                  onClick={closeDiffTab}
+                  onClick={() => closeTab(activeTab.id)}
                   className="ml-auto shrink-0 text-muted hover:text-primary-text p-0.5 rounded hover:bg-dominant transition-colors"
                   aria-label="Close diff tab"
                 >
                   <X size={12} />
                 </button>
               </div>
-              {/* Breadcrumb navigation */}
               <FileBreadcrumb
-                machineId={activeDiffTab.machineId}
-                repoPath={activeDiffTab.repoPath}
-                filePath={activeDiffTab.filePath}
+                machineId={activeTab.diffData.machineId}
+                repoPath={activeTab.diffData.repoPath}
+                filePath={activeTab.diffData.filePath}
               />
             </>
           )}
-          {activeDiffTab?.isMrDiff && activeDiffTab.taskId && (
-            <MrMetadataHeader taskId={activeDiffTab.taskId} />
-          )}
           <div className="relative flex-1 overflow-hidden">
-            {activeDiffTab && (
+            {activeTab?.type === "diff" && activeTab.diffData && (
               <div className="absolute inset-0">
-                <DiffViewerWithComments activeDiffTab={activeDiffTab} />
+                <DiffViewer
+                  machineId={activeTab.diffData.machineId}
+                  repoPath={activeTab.diffData.repoPath}
+                  filePath={activeTab.diffData.filePath}
+                  commitSha={activeTab.diffData.commitSha}
+                />
               </div>
             )}
-            {/* Editor tab content */}
-            {!activeDiffTab && activeTab?.type === "editor" && renderEditorContent()}
-            {!activeDiffTab && !activeTab && !activeMachineId && (
+            {activeTab?.type === "editor" && renderEditorContent()}
+            {!activeTab && !activeMachineId && (
               <div className="flex absolute inset-0 items-center justify-center">
                 <div className="text-center">
                   <h3 className="text-sm font-semibold text-primary-text">
@@ -257,15 +219,13 @@ export function CenterPanel() {
                 </div>
               </div>
             )}
-            {!activeDiffTab && activeTab?.type !== "editor" && activeMachineId && machineSessions.length === 0 && (
+            {activeTab?.type !== "diff" && activeTab?.type !== "editor" && activeMachineId && machineSessions.length === 0 && (
               <div className="flex absolute inset-0 items-center justify-center text-muted text-xs">
                 No session selected. Click &quot;+&quot; to start a terminal session.
               </div>
             )}
-            {/* Keep all terminal views mounted (for state preservation) but only show the active one */}
             {machineSessions.map((s) => {
               const isActiveTerminal =
-                !activeDiffTab &&
                 activeTab?.type === "terminal" &&
                 activeTab.terminalData?.sessionId === s.id;
               return (
