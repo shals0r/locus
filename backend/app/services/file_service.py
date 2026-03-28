@@ -182,51 +182,53 @@ async def write_file(machine_id: str, file_path: str, content: str) -> None:
         raise IOError(f"Failed to write {file_path}: {exc}") from exc
 
 
+_PRUNE_DIRS = (
+    ".git", "node_modules", "__pycache__", ".venv", "venv",
+    ".mypy_cache", ".pytest_cache", ".tox", "dist", "build",
+    ".next", ".nuxt", ".cache", ".eggs",
+)
+
+
 async def list_directory(
     machine_id: str, dir_path: str, depth: int = 1
 ) -> list[dict]:
     """List directory contents with type info (file vs directory).
 
     Uses find with -maxdepth to fetch multiple levels in a single SSH call.
-    depth=1 returns immediate children, depth=3 prefetches 3 levels deep.
-    Returns flat list with full paths — caller groups by parent.
+    Prunes heavy directories (.git, node_modules, etc.) for speed.
     """
     safe_path = shlex.quote(dir_path)
-    clean_root = dir_path.rstrip("/")
+
+    # Build prune expression to skip heavy dirs
+    prune_parts = " -o ".join(f"-name {d}" for d in _PRUNE_DIRS)
+    cmd = (
+        f"find {safe_path} -maxdepth {depth} -mindepth 1"
+        f" \\( {prune_parts} \\) -prune"
+        f" -o -type d -printf 'd %p\\n'"
+        f" -o -type f -printf 'f %p\\n'"
+    )
 
     try:
-        # find prints type (d/f) + path, -mindepth 1 skips the root itself
-        output = await run_command_on_machine(
-            machine_id,
-            f"find {safe_path} -maxdepth {depth} -mindepth 1"
-            f" \\( -type d -printf 'd %p\\n' \\) -o \\( -type f -printf 'f %p\\n' \\)"
-            f" 2>/dev/null"
-            f" || find {safe_path} -maxdepth {depth} -mindepth 1 -print0"
-            f" | xargs -0 -I{{}} sh -c 'if [ -d \"{{}}\" ]; then echo \"d {{}}\"; else echo \"f {{}}\"; fi'"
-        )
+        output = await run_command_on_machine(machine_id, cmd)
     except Exception as exc:
         raise FileNotFoundError(f"Directory not found: {dir_path}: {exc}") from exc
 
     entries: list[dict] = []
     for line in output.strip().split("\n"):
         line = line.strip()
-        if not line or len(line) < 3:
+        if not line or len(line) < 3 or line[1] != " ":
             continue
 
         entry_type = line[0]
         entry_path = line[2:]
-        if not entry_path or entry_path == clean_root:
-            continue
-
-        is_dir = entry_type == "d"
         name = entry_path.rsplit("/", 1)[-1]
-        if not name or name.startswith("."):
+        if not name:
             continue
 
         entries.append({
             "name": name,
             "path": entry_path,
-            "is_dir": is_dir,
+            "is_dir": entry_type == "d",
         })
 
     entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
