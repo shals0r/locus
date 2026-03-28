@@ -198,6 +198,7 @@ export function CenterPanel() {
             {activeTab?.type === "diff" && activeTab.diffData && (
               <div className="absolute inset-0">
                 <DiffViewer
+                  key={activeTab.id}
                   machineId={activeTab.diffData.machineId}
                   repoPath={activeTab.diffData.repoPath}
                   filePath={activeTab.diffData.filePath}
