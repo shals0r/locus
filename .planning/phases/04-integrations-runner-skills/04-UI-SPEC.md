@@ -34,16 +34,18 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, status dot margins, inline padding |
-| sm | 8px | Compact element spacing, chip padding, worker card internal gaps |
-| hit-area | 12px | Resize handle hit area (Integrator panel edge) |
+| sm | 8px | Compact element spacing, chip padding, worker card internal gaps, skill chip row gap |
+| hit-area | 12px | Resize handle hit area (Integrator panel edge). Smallest multiple of 4 that provides reliable drag target. |
 | md | 16px | Default element spacing, form field gaps, worker card padding |
 | lg | 24px | Section padding within Settings Integrations section |
 | xl | 32px | Gap between worker cards |
-| touch | 36px | Minimum interactive element height: skill chips, play/pause buttons, Deploy button |
+| touch | 36px | Minimum interactive element height: skill chips, play/pause buttons, Deploy button. WCAG 2.5.5 minimum touch target guidance. |
 | 2xl | 48px | Page-level padding in Settings view |
 | 3xl | 64px | Not used in Phase 4 |
 
-Exceptions: none
+Exceptions:
+- 12px (`hit-area`) — included as the smallest practical drag-target width; a multiple of 4 but below the standard 16px step. Used exclusively for the Integrator panel resize handle.
+- 36px (`touch`) — included per WCAG 2.5.5 enhanced touch target guidance (minimum 44px ideal, 36px acceptable for desktop-only single-user app). Used for interactive element minimum heights.
 
 ---
 
@@ -81,7 +83,7 @@ All colors from the established `@theme` block in `frontend/src/main.css`. No ne
 
 | Role | Value | Usage in Phase 4 |
 |------|-------|-------------------|
-| Success | `#22c55e` | Worker status dot: running |
+| Success | `#22c55e` | Worker status dot: running, starting (pulsing) |
 | Warning | `#f59e0b` | Worker status dot: degraded; dry-run "testing" state |
 | Error | `#ef4444` | Worker status dot: crashed/disabled; log error lines |
 | Muted text | `#6b7280` | Worker metadata labels, skill descriptions, timestamps, log line numbers |
@@ -89,7 +91,13 @@ All colors from the established `@theme` block in `frontend/src/main.css`. No ne
 | Border | `#2d3140` | Worker card borders, log panel borders, chat input border, section dividers |
 | Hover surface | `#252936` | Worker card hover, skill chip hover, action button hover |
 
-**Accent reserved for:** "New Integration" button, "Deploy" button in Integrator chat, active skill chip highlight when running, send button in Integrator chat, links to worker source/external docs. Never used for status dots or worker card backgrounds.
+**Accent reserved for:** "New Integration" button, "Deploy Worker" button in Integrator chat, active skill chip highlight when running, send button in Integrator chat, links to worker source/external docs. Never used for status dots or worker card backgrounds.
+
+---
+
+## Focal Point
+
+The primary screen for Phase 4 is the Settings > Integrations section. The focal point is the **worker card list** -- the user's eye should land on the first worker card (or the empty state CTA) immediately upon scrolling to the Integrations section. The "New Integration" button is positioned top-right of the section heading as the primary action entry point.
 
 ---
 
@@ -100,13 +108,15 @@ Source: D-20
 | Status | Dot Color | Label |
 |--------|-----------|-------|
 | Running | `#22c55e` (success) | "Running" |
+| Starting | `#22c55e` (success, pulsing) | "Starting..." |
 | Degraded | `#f59e0b` (warning) | "Degraded" |
 | Crashed | `#ef4444` (error) | "Crashed" |
 | Disabled | `#ef4444` (error, 50% opacity) | "Disabled" |
 | Stopped | `#6b7280` (muted) | "Stopped" |
-| Starting | `#3b82f6` (accent, pulsing) | "Starting..." |
 
 Status dot size: 8px (`w-2 h-2 rounded-full`). Consistent with repo dirty indicator pattern in RepoRow.tsx (6px) but slightly larger for settings context where scanning speed matters more.
+
+Note: "Starting" uses the success color (not accent) with a pulsing animation to indicate a transitional state approaching "Running." This avoids contradiction with the accent reserved-for rule.
 
 ---
 
@@ -176,13 +186,13 @@ Structured cards appear inline within the chat message flow. They are visually d
 - Border: `border-border` with left accent bar (`border-l-4 border-l-accent`)
 - Background: `bg-secondary`
 - Content: Step label (Label role) + input field or credential reference
-- Action: "Save" button (accent, small)
+- Action: "Apply Config" button (accent, small)
 
 ### Dry-Run Test Card
 - Border: `border-border`
 - Background: `bg-secondary`
 - States:
-  - **Running:** Pulsing accent dot + "Testing against live API..."
+  - **Running:** Pulsing success dot + "Testing against live API..."
   - **Success:** Success dot + "Returned {N} items" + expand arrow to show preview cards
   - **Failed:** Error dot + error message + "Claude will iterate on the code."
 
@@ -193,7 +203,7 @@ Structured cards appear inline within the chat message flow. They are visually d
 
 ### Deploy Card
 - Full-width within chat
-- "Deploy" button: accent background, white text, `touch` height (36px), full width
+- "Deploy Worker" button: accent background, white text, `touch` height (36px), full width
 - States:
   - **Ready:** Button enabled, label "Deploy Worker"
   - **Deploying:** Button disabled, spinner, label "Deploying..."
@@ -248,7 +258,7 @@ Each worker renders as a card within the Integrations section of SettingsPage.
 - Log line format: `{timestamp} {LEVEL} {message}`
 - Level coloring: INFO = muted, WARN = warning, ERROR = error
 - Auto-scroll to bottom when new lines arrive (unless user has scrolled up)
-- "Load more" link at top of log area (Label role, accent color)
+- "Load earlier logs" link at top of log area (Label role, accent color)
 
 ---
 
@@ -268,7 +278,7 @@ Triggered by gear icon on WorkerCard. Renders as a dropdown/popover anchored to 
 1. **Poll Interval:** Label "Poll every" + number input + "minutes" suffix. Default from current worker config.
 2. **Credential:** Label "Credential" + dropdown of stored credentials (from existing credential store). Shows current credential name.
 3. **Enabled:** Label "Enabled" + toggle switch. When toggled off, worker stops. When toggled on from disabled state, resets failure count and restarts.
-4. **Save button:** "Save" (accent, small). Closes popover on save.
+4. **Apply Config button:** "Apply Config" (accent, small). Closes popover on save.
 
 ---
 
@@ -279,7 +289,7 @@ Source: D-22, D-23, D-24
 Renders in the sidebar below the selected repo's info section (below RepoRow's GSD actions area). Only visible when a repo is selected AND has discoverable skills.
 
 **Layout:**
-- Horizontal wrapping chip row with `gap-1.5` (6px)
+- Horizontal wrapping chip row with `gap-2` (8px)
 - Overflow: wrap to next line (sidebar is narrow, chips will wrap naturally)
 - Section label: "Skills" in Label role (12px, muted), margin-bottom `xs` (4px)
 
@@ -320,9 +330,11 @@ Renders in the sidebar below the selected repo's info section (below RepoRow's G
 | Deploy success | "Worker deployed and running." |
 | Dry-run success | "Test passed -- {N} items returned. Preview below." |
 | Log panel -- load more | "Load earlier logs" |
-| Worker re-enable action | "Re-enable" |
+| Worker re-enable action | "Re-enable Worker" |
 | Worker stop confirmation | Stop {worker_name}: "This will stop the worker immediately. It can be restarted from this page." |
 | Worker delete confirmation | Delete {worker_name}: "This will permanently remove the worker and its logs. This cannot be undone." |
+| Config step apply action | "Apply Config" |
+| Worker quick config apply | "Apply Config" |
 | Skills section label | "Skills" |
 | Skills loading | Skeleton shimmer (no text) |
 | Skills -- no skills | Not rendered (SkillBar hidden when no skills found) |
@@ -339,8 +351,8 @@ Renders in the sidebar below the selected repo's info section (below RepoRow's G
 - **View workers:** Navigate to Settings page, scroll to Integrations section. Worker cards are listed vertically.
 - **Start/stop worker:** Click play/pause button on worker card. No confirmation for start. Stop shows a brief confirmation tooltip: "Stop {name}?" with confirm/cancel.
 - **Expand logs:** Click anywhere on worker card body (not on buttons). Log panel slides open with 200ms transition. Click again to collapse.
-- **Quick config:** Click gear icon. Popover appears anchored to icon. Click outside or Save to close.
-- **Re-enable disabled worker:** Click "Re-enable" button shown on disabled worker cards (replaces play/pause). Resets failure count and starts worker.
+- **Quick config:** Click gear icon. Popover appears anchored to icon. Click outside or "Apply Config" to close.
+- **Re-enable disabled worker:** Click "Re-enable Worker" button shown on disabled worker cards (replaces play/pause). Resets failure count and starts worker.
 - **Delete worker:** Right-click or long-press on worker card shows context menu with "Delete" in destructive color. Confirmation dialog required.
 - **New integration:** Click "New Integration" button at top of Integrations section. Opens Integrator chat panel.
 
@@ -400,7 +412,7 @@ Source: D-24, D-25
 | Worker pause | `Pause` | 16px | Stop worker |
 | Worker gear | `Settings2` | 16px | Quick config |
 | Worker status: disabled | `Ban` | 14px | Shown next to "Disabled" label |
-| Worker re-enable | `RotateCcw` | 14px | Re-enable action |
+| Worker re-enable | `RotateCcw` | 14px | Re-enable Worker action |
 | Integrator close | `X` | 16px | Close panel |
 | Integrator send | `Send` | 16px | Send message |
 | Integrator title icon | `Wrench` | 16px | Panel header |
