@@ -12,7 +12,7 @@ import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
-import { DiffViewer } from "../diff/DiffViewer";
+import { DiffPanel } from "../diff/DiffPanel";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -146,7 +146,7 @@ export function CenterPanel() {
           <div className="relative flex-1 overflow-hidden">
             {activeDiffTab && (
               <div className="absolute inset-0">
-                <DiffViewer
+                <DiffPanel
                   machineId={activeDiffTab.machineId}
                   repoPath={activeDiffTab.repoPath}
                   filePath={activeDiffTab.filePath}
