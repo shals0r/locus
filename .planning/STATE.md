@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-03-28T19:48:13.776Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-28T19:48:38.924Z"
 last_activity: 2026-03-28
 progress:
   total_phases: 6
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 04 (integrations-runner-skills) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-03-28
 
@@ -70,6 +70,7 @@ Progress: [██████████] 100% (11/11 plans)
 | Phase 02 P08 | 5min | 2 tasks | 9 files |
 | Phase 03 P09 | 7min | 2 tasks | 9 files |
 | Phase 04 P04 | 4min | 2 tasks | 6 files |
+| Phase 04 P01 | 4min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Custom events for cross-component tab switching (command palette -> sidebar)
 - [Phase 03]: Command palette sub-modes (goto-line) via commandPaletteStore mode state
 - [Phase 04]: Cache key uses id(conn):repo_path for per-connection per-repo skill cache isolation
+- [Phase 04]: Container-scoped HMAC secret for worker->ingest auth (secrets.token_hex, hmac.compare_digest)
+- [Phase 04]: Centralized mention detection in feed_service.ingest_item() for all sources (polled and worker-submitted)
+- [Phase 04]: Exponential backoff crash recovery: base=2s, max=300s, disabled after 5 consecutive failures
 
 ### Pending Todos
 
@@ -129,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T19:48:13.769Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-03-28T19:48:38.918Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

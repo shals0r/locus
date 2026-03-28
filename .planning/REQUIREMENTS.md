@@ -47,8 +47,8 @@
 
 - [x] **INTG-01**: Locus exposes a universal ingest API (`POST /api/feed/ingest`) with a documented payload schema that any service can post to
 - [ ] **INTG-02**: User can interactively build a new integration worker with Claude via the Integrator skill (describe what to connect, test API communication, deploy worker)
-- [ ] **INTG-03**: New integration workers can be hot-deployed to the integrations runner container without restarting it
-- [ ] **INTG-04**: Integration workers run with a process supervisor that monitors health and restarts crashed workers
+- [x] **INTG-03**: New integration workers can be hot-deployed to the integrations runner container without restarting it
+- [x] **INTG-04**: Integration workers run with a process supervisor that monitors health and restarts crashed workers
 - [ ] **INTG-05**: User can view, start, stop, and inspect logs of running integration workers from the UI
 
 ### UI & Navigation
@@ -147,8 +147,8 @@
 | DIFF-05 | Phase 3 | Pending |
 | INTG-01 | Phase 2 | Pending |
 | INTG-02 | Phase 4 | Pending |
-| INTG-03 | Phase 4 | Pending |
-| INTG-04 | Phase 4 | Pending |
+| INTG-03 | Phase 4 | Complete |
+| INTG-04 | Phase 4 | Complete |
 | INTG-05 | Phase 4 | Pending |
 | UI-01 | Phase 2 | Pending |
 | UI-02 | Phase 2 | Pending |
