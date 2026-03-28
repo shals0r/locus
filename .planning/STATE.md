@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-28T11:24:52.755Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-03-28T12:01:49.834Z"
 last_activity: 2026-03-28
 progress:
   total_phases: 6
@@ -68,7 +68,7 @@ Progress: [██████████] 100% (11/11 plans)
 | Phase 02 P03 | 5min | 2 tasks | 9 files |
 | Phase 02 P04 | 2min | 2 tasks | 3 files |
 | Phase 02 P08 | 5min | 2 tasks | 9 files |
-| Phase 03 P03 | 5min | 2 tasks | 6 files |
+| Phase 03 P04 | 6min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -109,9 +109,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Search repos by scan path name matching (not live scanning) for faster command palette
 - [Phase 02]: Explicit typed arrays for task grouping instead of Record indexing for TypeScript strictness
 - [Phase 02]: Inline picker pattern for StartFlowPicker: multi-step selection rendered below triggering card in 340px panel
-- [Phase 03]: CenterTab union type with type-specific data fields for unified tab management
-- [Phase 03]: Backward-compatible store migration: legacy openDiffTab/closeDiffTab create CenterTabs internally
-- [Phase 03]: Sidebar tab state uses React local state (not Zustand) -- resets per session by design
+- [Phase 03]: DiffPanel wrapper composes all diff sub-components instead of inlining in CenterPanel
+- [Phase 03]: Mode state owned by DiffPanel, passed down to DiffToolbar and DiffViewer for consistency
+- [Phase 03]: CSS variable overrides for @git-diff-view/react to match Locus dark theme tokens
 
 ### Pending Todos
 
@@ -128,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T11:24:52.752Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-03-28T12:01:49.832Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None

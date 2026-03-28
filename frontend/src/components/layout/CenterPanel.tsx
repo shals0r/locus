@@ -12,7 +12,7 @@ import { SessionTabBar } from "../navigation/SessionTabBar";
 import { ContextStrip } from "../session/ContextStrip";
 import { ClaudeOverview } from "../terminal/ClaudeOverview";
 import { TerminalView } from "../terminal/TerminalView";
-import { DiffViewer } from "../diff/DiffViewer";
+import { DiffPanel } from "../diff/DiffPanel";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -113,7 +113,7 @@ export function CenterPanel() {
         if (activeTab.diffData) {
           return (
             <div className="absolute inset-0">
-              <DiffViewer
+              <DiffPanel
                 machineId={activeTab.diffData.machineId}
                 repoPath={activeTab.diffData.repoPath}
                 filePath={activeTab.diffData.filePath}
@@ -198,6 +198,7 @@ export function CenterPanel() {
           {activeTask && <ContextStrip />}
           <SessionTabBar />
           <div className="relative flex-1 overflow-hidden">
+<<<<<<< HEAD
             {renderContent()}
             {/* Keep all terminal views mounted (for state preservation) but only show the active one */}
             {machineSessions.map((s) => {
