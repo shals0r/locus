@@ -165,7 +165,11 @@ export function CenterPanel() {
                 </span>
                 {activeTab.diffData.filePath && (
                   <button
-                    onClick={() => openEditorTab(activeTab.diffData!.machineId, activeTab.diffData!.repoPath, activeTab.diffData!.filePath!)}
+                    onClick={() => {
+                      const fp = activeTab.diffData!.filePath!;
+                      const fullPath = fp.startsWith("/") ? fp : `${activeTab.diffData!.repoPath}/${fp}`;
+                      openEditorTab(activeTab.diffData!.machineId, activeTab.diffData!.repoPath, fullPath);
+                    }}
                     className="ml-1 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted hover:text-primary-text hover:bg-hover transition-colors"
                     title="Open in Editor"
                   >
