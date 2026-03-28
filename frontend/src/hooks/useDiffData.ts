@@ -101,7 +101,8 @@ export function useChangedFiles(
       );
     },
     enabled: !!machineId && !!repoPath,
-    staleTime: 10_000,
+    staleTime: 5_000,
+    refetchInterval: 10_000,
   });
 
   return { files: data ?? [], isLoading };
