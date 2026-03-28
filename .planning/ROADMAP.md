@@ -117,8 +117,8 @@ Plans:
 - [ ] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
 - [ ] 03-06-PLAN.md — AI review trigger + annotations (gutter icons, side panel, batch post, review submit)
 - [ ] 03-07-PLAN.md — Monaco editor + file tree + file operations + editor tabs
-- [x] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
-- [ ] 03-09-PLAN.md — Cross-file search + breadcrumb navigation + command palette extensions + diff-to-editor
+- [ ] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
+- [x] 03-09-PLAN.md — Cross-file search + breadcrumb navigation + command palette extensions + diff-to-editor
 - [ ] 03-10-PLAN.md — Visual and functional verification checkpoint
 
 **UI hint**: yes

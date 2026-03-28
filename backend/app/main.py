@@ -127,6 +127,7 @@ app.add_middleware(
 app.include_router(ai_review_router)
 app.include_router(auth_router)
 app.include_router(feed_router)
+app.include_router(files_router)
 app.include_router(git_router)
 app.include_router(gsd_events_router)
 app.include_router(machines_router)

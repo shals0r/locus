@@ -1,23 +1,22 @@
-import { GitBranch, FolderTree, Search } from "lucide-react";
+import { GitBranch, Search, FolderTree } from "lucide-react";
 
-export type SidebarTabId = "git" | "files" | "search";
+export type SidebarTabId = "git" | "search" | "files";
 
-const sidebarTabConfig: { id: SidebarTabId; label: string; Icon: typeof GitBranch }[] = [
-  { id: "git", label: "Git", Icon: GitBranch },
-  { id: "files", label: "Files", Icon: FolderTree },
-  { id: "search", label: "Search", Icon: Search },
-];
-
-export function SidebarTabs({
-  activeTab,
-  onTabChange,
-}: {
+interface SidebarTabsProps {
   activeTab: SidebarTabId;
   onTabChange: (tab: SidebarTabId) => void;
-}) {
+}
+
+const tabs: { id: SidebarTabId; label: string; Icon: typeof GitBranch }[] = [
+  { id: "git", label: "Git", Icon: GitBranch },
+  { id: "search", label: "Search", Icon: Search },
+  { id: "files", label: "Files", Icon: FolderTree },
+];
+
+export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
   return (
-    <div className="flex items-stretch border-b border-border bg-secondary">
-      {sidebarTabConfig.map(({ id, label, Icon }) => {
+    <div className="flex items-stretch border-b border-border bg-dominant">
+      {tabs.map(({ id, label, Icon }) => {
         const isActive = activeTab === id;
         return (
           <button
@@ -29,7 +28,7 @@ export function SidebarTabs({
                 : "border-b-2 border-transparent text-muted hover:text-primary-text"
             }`}
           >
-            <Icon size={11} />
+            <Icon size={12} />
             {label}
           </button>
         );
@@ -42,8 +41,8 @@ export function SidebarTabs({
 export function SidebarTabPlaceholder({ tab }: { tab: SidebarTabId }) {
   const messages: Record<SidebarTabId, string> = {
     git: "", // never shown -- git tab renders real content
-    files: "", // now renders FileTree, but kept for completeness
-    search: "Search coming soon",
+    search: "", // now renders FileSearch
+    files: "", // now renders FileTree
   };
 
   return (
