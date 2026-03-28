@@ -1,4 +1,4 @@
-"""Pydantic schemas for the Integrator chat skill."""
+"""Schemas for the Integrator chat (Claude Code CLI routing)."""
 
 from datetime import datetime
 from uuid import UUID
@@ -7,27 +7,36 @@ from pydantic import BaseModel
 
 
 class IntegratorMessage(BaseModel):
-    """User message to the Integrator skill."""
+    """Incoming message to the Integrator."""
 
     content: str
     session_id: str | None = None
-    machine_id: UUID | None = None
-    worker_id: UUID | None = None  # For editing existing workers
+    machine_id: str | None = None
+    worker_id: str | None = None
 
 
 class IntegratorResponse(BaseModel):
-    """Response from the Integrator skill."""
+    """Response from the Integrator."""
 
     content: str
     session_id: str
-    structured_cards: list[dict] = []  # Config steps, test results, deploy actions
-    worker_ready: bool = False  # True when deploy card should appear
+    structured_cards: list[dict] = []
+    worker_ready: bool = False
 
 
 class IntegratorSession(BaseModel):
-    """An active Integrator session."""
+    """Metadata for a persisted Integrator conversation."""
 
     session_id: str
-    machine_id: UUID
-    worker_id: UUID | None = None
+    machine_id: str
+    worker_id: str | None = None
     created_at: datetime
+
+
+class IntegratorDeployRequest(BaseModel):
+    """Request to deploy a worker from an Integrator session."""
+
+    worker_id: str
+    script_path: str
+    name: str
+    source_type: str
