@@ -91,7 +91,10 @@ export function FileSearch() {
   const handleMatchClick = useCallback(
     (filePath: string, _lineNumber: number) => {
       if (!selectedMachineId || !selectedRepoPath) return;
-      openEditorTab(selectedMachineId, selectedRepoPath, filePath);
+      const fullPath = filePath.startsWith("/")
+        ? filePath
+        : `${selectedRepoPath}/${filePath}`;
+      openEditorTab(selectedMachineId, selectedRepoPath, fullPath);
     },
     [selectedMachineId, selectedRepoPath, openEditorTab],
   );

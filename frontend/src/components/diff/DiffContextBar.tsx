@@ -1,4 +1,5 @@
-import { ChevronRight, GitBranch, FolderGit2 } from "lucide-react";
+import { ChevronRight, GitBranch, FolderGit2, Pencil } from "lucide-react";
+import { useSessionStore } from "../../stores/sessionStore";
 
 interface DiffContextBarProps {
   /** Repo name/path */
@@ -15,6 +16,8 @@ interface DiffContextBarProps {
   mrTitle?: string;
   /** MR/PR status */
   mrStatus?: "open" | "merged" | "closed";
+  /** Machine ID for opening editor */
+  machineId?: string;
 }
 
 /** Extract just the repo folder name from a full path */
@@ -51,7 +54,9 @@ export function DiffContextBar({
   mrIdentifier,
   mrTitle,
   mrStatus,
+  machineId,
 }: DiffContextBarProps) {
+  const openEditorTab = useSessionStore((s) => s.openEditorTab);
   if (isMrDiff) {
     // MR/PR context mode
     return (
@@ -91,6 +96,20 @@ export function DiffContextBar({
           <span className="text-[11px] text-primary-text truncate">
             {filePath}
           </span>
+          {machineId && (
+            <button
+              onClick={() => {
+                const fullPath = filePath.startsWith("/")
+                  ? filePath
+                  : `${repoName}/${filePath}`;
+                openEditorTab(machineId, repoName, fullPath);
+              }}
+              className="ml-1 shrink-0 rounded p-0.5 text-muted hover:text-accent hover:bg-hover/50 transition-colors"
+              title="Open in Editor"
+            >
+              <Pencil size={11} />
+            </button>
+          )}
         </>
       )}
     </div>

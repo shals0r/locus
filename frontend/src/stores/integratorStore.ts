@@ -209,6 +209,10 @@ export const useIntegratorStore = create<IntegratorStore>((set, get) => ({
 // Listen for "open-integrator" custom event (from IntegrationSettings "New Integration" button)
 if (typeof window !== "undefined") {
   window.addEventListener("open-integrator", ((e: CustomEvent) => {
+    // Close settings panel when opening integrator
+    import("./panelStore").then(({ usePanelStore }) => {
+      usePanelStore.getState().setSettingsOpen(false);
+    });
     const workerId = e.detail?.workerId;
     useIntegratorStore.getState().open(workerId);
   }) as EventListener);

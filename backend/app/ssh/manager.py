@@ -17,11 +17,16 @@ class SSHManager:
     """Manages persistent SSH connections with heartbeat and reconnection.
 
     Provides a connection pool keyed by machine_id, with periodic heartbeat
-    checks and exponential backoff reconnection on failure.
+    checks and exponential backoff reconnection on failure.  Each connection
+    has a semaphore that limits concurrent SSH channels to avoid exceeding
+    the server's MaxSessions limit (default 10 in OpenSSH).
     """
+
+    MAX_CONCURRENT_CHANNELS = 5  # safe headroom under MaxSessions=10
 
     def __init__(self) -> None:
         self._connections: dict[str, asyncssh.SSHClientConnection] = {}
+        self._semaphores: dict[str, asyncio.Semaphore] = {}
         self._heartbeat_tasks: dict[str, asyncio.Task] = {}  # type: ignore[type-arg]
         self._status_callbacks: list[Callable[[str, str], None]] = []
         self._machine_status: dict[str, str] = {}
@@ -70,6 +75,7 @@ class SSHManager:
         )
 
         self._connections[machine_id] = conn
+        self._semaphores[machine_id] = asyncio.Semaphore(self.MAX_CONCURRENT_CHANNELS)
         self._conn_params[machine_id] = {
             "host": host,
             "port": port,
@@ -95,6 +101,60 @@ class SSHManager:
         """
         return self._connections.get(machine_id)
 
+    def get_semaphore(self, machine_id: str) -> asyncio.Semaphore:
+        """Get the per-connection concurrency semaphore.
+
+        All code that opens SSH channels should acquire this semaphore
+        to stay under the server's MaxSessions limit.
+        """
+        sem = self._semaphores.get(machine_id)
+        if sem is None:
+            sem = asyncio.Semaphore(self.MAX_CONCURRENT_CHANNELS)
+            self._semaphores[machine_id] = sem
+        return sem
+
+    async def run(self, machine_id: str, command: str, check: bool = True) -> asyncssh.SSHCompletedProcess:
+        """Run a command on a machine with concurrency limiting.
+
+        Acquires the per-connection semaphore before opening an SSH channel.
+        On connection failure, triggers reconnection and retries once.
+        """
+        conn = self._connections.get(machine_id)
+        if conn is None:
+            raise ConnectionError(f"Machine {machine_id} is not connected")
+
+        sem = self._semaphores.get(machine_id)
+        if sem is None:
+            sem = asyncio.Semaphore(self.MAX_CONCURRENT_CHANNELS)
+            self._semaphores[machine_id] = sem
+
+        async def _exec() -> asyncssh.SSHCompletedProcess:
+            c = self._connections.get(machine_id)
+            if c is None:
+                raise ConnectionError(f"Machine {machine_id} is not connected")
+            async with sem:
+                return await c.run(command, check=check)
+
+        try:
+            return await _exec()
+        except (asyncssh.ConnectionLost, asyncssh.DisconnectError, BrokenPipeError, OSError) as exc:
+            logger.warning("SSH command failed for machine=%s, reconnecting: %s", machine_id, exc)
+            params = self._conn_params.get(machine_id)
+            if params:
+                try:
+                    await self.connect(
+                        machine_id=machine_id,
+                        host=params["host"],
+                        port=params["port"],
+                        username=params["username"],
+                        ssh_key_path=params["ssh_key_path"],
+                        ssh_key_passphrase=params.get("ssh_key_passphrase"),
+                    )
+                    return await _exec()
+                except Exception:
+                    pass
+            raise ConnectionError(f"Machine {machine_id} connection lost: {exc}") from exc
+
     async def disconnect(self, machine_id: str) -> None:
         """Disconnect from a machine, cancelling heartbeat and closing connection."""
         # Cancel heartbeat task
@@ -116,6 +176,7 @@ class SSHManager:
                 pass
 
         self._conn_params.pop(machine_id, None)
+        self._semaphores.pop(machine_id, None)
         self._set_status(machine_id, "offline")
         logger.info("SSH disconnected from machine=%s", machine_id)
 

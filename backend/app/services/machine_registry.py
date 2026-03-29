@@ -48,13 +48,11 @@ async def run_command_on_machine(machine_id: str, command: str) -> str:
     """Run a command on any machine and return stdout.
 
     Routes to LocalMachineManager.run_command() for the local machine,
-    or executes via SSH connection for remote machines.
+    or executes via SSH connection for remote machines.  Remote commands
+    go through the SSH manager's concurrency limiter and auto-reconnect.
     """
     if machine_id == LOCAL_MACHINE_ID:
         return await local_machine_manager.run_command(command)
 
-    conn = await ssh_manager.get_connection(machine_id)
-    if conn is None:
-        raise ConnectionError(f"Machine {machine_id} is not connected")
-    result = await conn.run(command, check=True)
+    result = await ssh_manager.run(machine_id, command, check=True)
     return result.stdout

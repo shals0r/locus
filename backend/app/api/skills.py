@@ -43,7 +43,7 @@ async def list_skills(
 
     try:
         conn = await get_connection_for_machine(machine_id)
-        skills = await discover_skills(conn, decoded_path)
+        skills = await discover_skills(conn, decoded_path, machine_id=machine_id)
         return SkillListResponse(
             skills=[SkillResponse(**s) for s in skills],
             repo_path=decoded_path,

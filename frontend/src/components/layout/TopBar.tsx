@@ -3,6 +3,7 @@ import { Settings, LogOut, User, Wifi, Database, Bot, Search } from "lucide-reac
 import { useAuthStore } from "../../stores/authStore";
 import { useMachineStore } from "../../stores/machineStore";
 import { useClaudeSessionStore } from "../../stores/claudeSessionStore";
+import { usePanelStore } from "../../stores/panelStore";
 import { useStatus } from "../../hooks/useStatus";
 
 function StatusDot({ status }: { status: "connected" | "disconnected" | "connecting" }) {
@@ -122,7 +123,10 @@ export function TopBar() {
           <div className="absolute right-0 top-10 z-50 w-40 rounded border border-border bg-secondary py-1 shadow-lg">
             <button
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary-text hover:bg-hover"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                usePanelStore.getState().setSettingsOpen(true);
+                setMenuOpen(false);
+              }}
             >
               <Settings size={14} />
               Settings

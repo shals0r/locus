@@ -25,8 +25,6 @@ export function IntegratorChat() {
   const close = useIntegratorStore((s) => s.close);
   const messages = useIntegratorStore((s) => s.messages);
   const machineId = useIntegratorStore((s) => s.machineId);
-  const setMachineId = useIntegratorStore((s) => s.setMachineId);
-  const availableMachines = useIntegratorStore((s) => s.availableMachines);
   const credentialSaved = useIntegratorStore((s) => s.credentialSaved);
   const loading = useIntegratorStore((s) => s.loading);
 
@@ -155,29 +153,9 @@ export function IntegratorChat() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Machine selector */}
           <div className="flex items-center gap-1">
             <Monitor size={14} className="text-muted" />
-            <select
-              value={machineId || ""}
-              onChange={(e) => setMachineId(e.target.value)}
-              className="rounded border border-border bg-secondary px-1.5 py-0.5 text-xs text-primary-text outline-none focus:border-accent"
-              title={
-                availableMachines.length === 0
-                  ? "No machines with Claude Code detected"
-                  : "Select machine"
-              }
-              disabled={availableMachines.length === 0}
-            >
-              {availableMachines.length === 0 && (
-                <option value="">No machines with Claude Code detected</option>
-              )}
-              {availableMachines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <span className="text-xs text-muted">This Machine</span>
           </div>
 
           <button

@@ -71,7 +71,7 @@ class IntegratorService:
         conn: Any,  # asyncssh connection
         message: str,
         session_id: str | None = None,
-        cwd: str = "/data/workers",
+        cwd: str = "~",
     ) -> dict:
         """Send a message to Claude Code CLI and get a structured response.
 
@@ -340,37 +340,14 @@ class IntegratorService:
         }
 
     async def get_machines_with_claude(self, machine_registry_module: Any) -> list[dict]:
-        """List connected machines that have Claude Code installed.
+        """Return the local/host machine as the only Integrator target.
 
-        Used by the frontend to populate the machine selector in the Integrator header.
+        The Integrator always runs on the machine Locus is hosted on.
+        No machine selector needed — this is a cemented design decision.
         """
-        from app.ssh.manager import ssh_manager
-        from app.local.manager import local_machine_manager, LOCAL_MACHINE_ID
+        from app.local.manager import LOCAL_MACHINE_ID
 
-        machines: list[dict] = []
-
-        # Check local machine
-        if local_machine_manager.is_usable:
-            machines.append({
-                "id": LOCAL_MACHINE_ID,
-                "name": "This Machine",
-            })
-
-        # Check remote machines
-        for machine_id, conn in ssh_manager.connections.items():
-            if conn is None:
-                continue
-            try:
-                result = await conn.run("which claude 2>/dev/null || command -v claude 2>/dev/null", check=False)
-                if result.returncode == 0 and result.stdout.strip():
-                    machines.append({
-                        "id": machine_id,
-                        "name": machine_id,  # Caller can enrich with machine name
-                    })
-            except Exception:
-                continue
-
-        return machines
+        return [{"id": LOCAL_MACHINE_ID, "name": "This Machine"}]
 
 
 # Module-level singleton

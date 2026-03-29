@@ -23,7 +23,7 @@ function parseLine(line: string): { timestamp: string; level: string; message: s
   // Expected format: "2026-03-28 14:32:01 INFO Polled 12 items"
   const match = line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(INFO|WARN|WARNING|ERROR|DEBUG)\s+(.*)$/i);
   if (match) {
-    return { timestamp: match[1], level: match[2], message: match[3] };
+    return { timestamp: match[1]!, level: match[2]!, message: match[3]! };
   }
   return { timestamp: "", level: "INFO", message: line };
 }

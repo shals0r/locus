@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useMachineStore } from "../../stores/machineStore";
+import { usePanelStore } from "../../stores/panelStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useTaskStore } from "../../stores/taskStore";
 import { apiGet } from "../../hooks/useApi";
@@ -14,6 +15,7 @@ import { TerminalView } from "../terminal/TerminalView";
 import { DiffPanel } from "../diff/DiffPanel";
 import { CodeEditor } from "../editor/CodeEditor";
 import { FileBreadcrumb } from "../editor/FileBreadcrumb";
+import { SettingsPage } from "../settings/SettingsPage";
 
 export function CenterPanel() {
   const activeMachineId = useMachineStore((s) => s.activeMachineId);
@@ -23,12 +25,15 @@ export function CenterPanel() {
   const sessions = useSessionStore((s) => s.sessions);
   const setSessions = useSessionStore((s) => s.setSessions);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const restoreSessionTabs = useSessionStore((s) => s.restoreSessionTabs);
   const activeTask = useTaskStore((s) => s.activeTask);
   const setActiveTask = useTaskStore((s) => s.setActiveTask);
   // Unified tab system — single source of truth for all tab types
   const tabs = useSessionStore((s) => s.tabs);
   const activeTabId = useSessionStore((s) => s.activeTabId);
   const activeTab = tabs.find((t) => t.id === activeTabId);
+  const settingsOpen = usePanelStore((s) => s.settingsOpen);
+  const setSettingsOpen = usePanelStore((s) => s.setSettingsOpen);
 
   // Hydrate activeTask from server ONLY on initial mount
   const { data: allTasks } = useTasks();
@@ -66,10 +71,7 @@ export function CenterPanel() {
     apiGet<TerminalSession[]>(`/api/sessions?machine_id=${activeMachineId}`)
       .then((fetchedSessions) => {
         setSessions(fetchedSessions);
-        const first = fetchedSessions[0];
-        if (first && !activeSessionId) {
-          setActiveSession(first.id);
-        }
+        restoreSessionTabs(fetchedSessions);
       })
       .catch((err) => console.error("Failed to fetch sessions:", err));
   }, [activeMachineId, machineNeedsSetup, setSessions, setActiveSession, activeSessionId]);
@@ -107,7 +109,23 @@ export function CenterPanel() {
   return (
     <div className="flex h-full flex-col">
       <MachineTabBar />
-      {machineNeedsSetup ? (
+      {settingsOpen ? (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-secondary px-4 py-2">
+            <span className="text-sm font-medium text-primary-text">Settings</span>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="rounded p-1 text-muted hover:text-primary-text hover:bg-hover transition-colors"
+              aria-label="Close settings"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <SettingsPage />
+          </div>
+        </div>
+      ) : machineNeedsSetup ? (
         <div className="flex flex-1 items-center justify-center">
           <div className="max-w-md text-center px-6">
             <AlertTriangle size={32} className="mx-auto mb-4 text-warning" />

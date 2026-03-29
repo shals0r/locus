@@ -70,13 +70,44 @@ interface SessionState {
     repoPath: string,
     filePath: string,
   ) => void;
+
+  // Restore all terminal sessions as tabs in one update
+  restoreSessionTabs: (sessions: TerminalSession[]) => void;
 }
+
+function loadPersistedTabs(): { tabs: CenterTab[]; activeTabId: string | null; activeSessionId: string | null } {
+  try {
+    const raw = localStorage.getItem("locus_tabs");
+    if (!raw) return { tabs: [], activeTabId: null, activeSessionId: null };
+    const data = JSON.parse(raw);
+    const tabs: CenterTab[] = data.tabs ?? [];
+    const activeTabId = tabs.find((t) => t.id === data.activeTabId)
+      ? data.activeTabId
+      : null;
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    const activeSessionId =
+      activeTab?.type === "terminal"
+        ? (activeTab.terminalData?.sessionId ?? null)
+        : null;
+    return { tabs, activeTabId, activeSessionId };
+  } catch {
+    return { tabs: [], activeTabId: null, activeSessionId: null };
+  }
+}
+
+function persistTabs(tabs: CenterTab[], activeTabId: string | null) {
+  try {
+    localStorage.setItem("locus_tabs", JSON.stringify({ tabs, activeTabId }));
+  } catch { /* ignore */ }
+}
+
+const restored = loadPersistedTabs();
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
-  activeSessionId: null,
-  tabs: [],
-  activeTabId: null,
+  activeSessionId: restored.activeSessionId,
+  tabs: restored.tabs,
+  activeTabId: restored.activeTabId,
   activeDiffTab: null,
 
   setSessions: (sessions) => set({ sessions }),
@@ -351,7 +382,49 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         activeDiffTab: null,
       };
     }),
+
+  restoreSessionTabs: (sessions) =>
+    set((s) => {
+      const existingTerminalIds = new Set(
+        s.tabs.filter((t) => t.type === "terminal").map((t) => t.id),
+      );
+      const newTabs: CenterTab[] = [];
+      for (const sess of sessions) {
+        const tabId = `terminal-${sess.id}`;
+        if (existingTerminalIds.has(tabId)) continue;
+        const label =
+          sess.display_name ||
+          (sess.repo_path
+            ? sess.repo_path.split("/").pop() || "Shell"
+            : sess.session_type === "claude"
+              ? "Claude"
+              : "Shell");
+        newTabs.push({
+          id: tabId,
+          type: "terminal",
+          label,
+          icon: "terminal",
+          terminalData: { sessionId: sess.id, machineId: sess.machine_id },
+        });
+      }
+      if (newTabs.length === 0) return s;
+      const allTabs = [...s.tabs, ...newTabs];
+      // If no active tab, activate the first terminal
+      const activeTabId = s.activeTabId ?? newTabs[0]?.id ?? null;
+      const activeSessionId =
+        activeTabId && allTabs.find((t) => t.id === activeTabId)?.type === "terminal"
+          ? (allTabs.find((t) => t.id === activeTabId)?.terminalData?.sessionId ?? null)
+          : s.activeSessionId;
+      return { tabs: allTabs, activeTabId, activeSessionId };
+    }),
 }));
+
+// Auto-persist tabs on any change
+useSessionStore.subscribe((state, prev) => {
+  if (state.tabs !== prev.tabs || state.activeTabId !== prev.activeTabId) {
+    persistTabs(state.tabs, state.activeTabId);
+  }
+});
 
 /** Build a legacy DiffTab from a CenterTab for backward compat */
 function buildLegacyDiffTab(tab: CenterTab): DiffTab | null {

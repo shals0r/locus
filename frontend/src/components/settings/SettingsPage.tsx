@@ -5,12 +5,8 @@ import { IntegrationSettings } from "./IntegrationSettings";
 
 export function SettingsPage() {
   return (
-    <div className="min-h-full overflow-y-auto bg-dominant p-8">
-      <h1 className="mb-8 text-lg font-semibold text-primary-text">
-        Settings
-      </h1>
-
-      <div className="flex max-w-2xl flex-col gap-8">
+    <div className="min-h-full overflow-y-auto bg-dominant px-8 py-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
         {/* Machines section */}
         <section className="rounded-lg border border-border bg-secondary p-6">
           <h2 className="mb-4 text-lg font-semibold text-primary-text">

@@ -15,16 +15,38 @@ interface MachineState {
   setMachineStatus: (id: string, status: MachineStatus) => void;
 }
 
+function loadActiveMachineId(): string | null {
+  try {
+    return localStorage.getItem("locus_active_machine");
+  } catch {
+    return null;
+  }
+}
+
+function saveActiveMachineId(id: string | null) {
+  try {
+    if (id) localStorage.setItem("locus_active_machine", id);
+    else localStorage.removeItem("locus_active_machine");
+  } catch { /* ignore */ }
+}
+
 export const useMachineStore = create<MachineState>((set) => ({
   machines: [],
-  activeMachineId: null,
+  activeMachineId: loadActiveMachineId(),
   claudeViewActive: false,
   machineStatuses: {},
   setMachines: (machines) =>
-    set({
-      machines: [...machines].sort((a, b) =>
+    set((s) => {
+      const sorted = [...machines].sort((a, b) =>
         a.id === LOCAL_MACHINE_ID ? -1 : b.id === LOCAL_MACHINE_ID ? 1 : 0,
-      ),
+      );
+      // Auto-select: restore persisted machine, or pick first available
+      let active = s.activeMachineId;
+      if (!active || !sorted.find((m) => m.id === active)) {
+        active = sorted[0]?.id ?? null;
+        saveActiveMachineId(active);
+      }
+      return { machines: sorted, activeMachineId: active };
     }),
   addMachine: (machine) =>
     set((s) => ({ machines: [...s.machines, machine] })),
@@ -35,7 +57,10 @@ export const useMachineStore = create<MachineState>((set) => ({
       activeMachineId: s.activeMachineId === id ? null : s.activeMachineId,
     }));
   },
-  setActiveMachine: (id) => set({ activeMachineId: id, claudeViewActive: false }),
+  setActiveMachine: (id) => {
+    saveActiveMachineId(id);
+    set({ activeMachineId: id, claudeViewActive: false });
+  },
   setClaudeViewActive: (active) => set((s) => ({ claudeViewActive: active, activeMachineId: active ? null : s.activeMachineId })),
   setMachineStatus: (id, status) =>
     set((s) => ({

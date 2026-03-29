@@ -144,13 +144,28 @@ async def get_diff_for_file(
 
 
 async def get_commit_diff(machine_id: str, repo_path: str, commit_sha: str) -> str:
-    """Get diff for a specific commit."""
+    """Get diff for a specific commit.
+
+    Merge commits use diff against first parent to produce a single
+    meaningful diff instead of the combined output (which is usually empty
+    or massive).
+    """
     safe_path = shlex.quote(repo_path)
     safe_sha = shlex.quote(commit_sha)
 
-    return await run_command_on_machine(
-        machine_id, f"git -C {safe_path} show --format='' {safe_sha}"
-    )
+    # Check if this is a merge commit (has more than one parent)
+    parent_count = (await run_command_on_machine(
+        machine_id,
+        f"git -C {safe_path} cat-file -p {safe_sha} | grep -c '^parent '"
+    )).strip()
+
+    if parent_count.isdigit() and int(parent_count) > 1:
+        # Merge commit: diff against first parent
+        cmd = f"git -C {safe_path} diff {safe_sha}^1 {safe_sha}"
+    else:
+        cmd = f"git -C {safe_path} show --format='' {safe_sha}"
+
+    return await run_command_on_machine(machine_id, cmd)
 
 
 async def get_file_content_at_ref(

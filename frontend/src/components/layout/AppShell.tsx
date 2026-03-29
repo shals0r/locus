@@ -14,6 +14,7 @@ import { Sidebar } from "./Sidebar";
 import { CenterPanel } from "./CenterPanel";
 import { RightPanel } from "./RightPanel";
 import { CommandPalette } from "../palette/CommandPalette";
+import { IntegratorChat } from "../integrator/IntegratorChat";
 
 const RIGHT_PANEL_DEFAULT_SIZE = 25;
 
@@ -121,6 +122,7 @@ export function AppShell() {
     <div className="flex h-screen flex-col bg-dominant text-primary-text">
       <TopBar />
       <CommandPalette />
+      <IntegratorChat />
       <PanelGroup direction="horizontal" className="flex-1">
         {/* Left sidebar */}
         <Panel

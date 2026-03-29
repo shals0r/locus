@@ -224,7 +224,8 @@ async def _poll_session_names() -> list[dict[str, str]]:
             conn = ssh_manager._connections.get(machine_id)
             if conn is None:
                 continue
-            display_name = await _detect_pane_display_name(conn, tmux_name)
+            async with ssh_manager.get_semaphore(machine_id):
+                display_name = await _detect_pane_display_name(conn, tmux_name)
 
         if display_name:
             updates.append({
@@ -240,12 +241,15 @@ async def _detect_session_statuses(
     conn: object,
 ) -> list[dict]:
     """Detect Claude sessions and their statuses on a machine via SSH."""
-    sessions = await detect_claude_sessions(conn)  # type: ignore[arg-type]
+    sem = ssh_manager.get_semaphore(machine_id)
+    async with sem:
+        sessions = await detect_claude_sessions(conn)  # type: ignore[arg-type]
     for s in sessions:
         s["machine_id"] = machine_id
-        s["status"] = await detect_claude_session_status(
-            conn, s["tmux_session"], s["window_index"]  # type: ignore[arg-type]
-        )
+        async with sem:
+            s["status"] = await detect_claude_session_status(
+                conn, s["tmux_session"], s["window_index"]  # type: ignore[arg-type]
+            )
     return sessions
 
 

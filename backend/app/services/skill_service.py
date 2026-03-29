@@ -17,19 +17,25 @@ _skill_cache: dict[str, tuple[float, list[dict]]] = {}
 SKILL_TTL = 300  # 5 minutes
 
 
-async def _run_command(conn, command: str) -> str:
+async def _run_command(conn, command: str, machine_id: str | None = None) -> str:
     """Run a command via SSH connection or local subprocess.
 
     Args:
         conn: asyncssh connection, or None for local machine.
         command: shell command string.
+        machine_id: if provided, acquires the SSH semaphore.
 
     Returns:
         stdout as a string (empty string on error).
     """
     if conn is not None:
         try:
-            result = await conn.run(command, check=False)
+            if machine_id:
+                from app.ssh.manager import ssh_manager
+                async with ssh_manager.get_semaphore(machine_id):
+                    result = await conn.run(command, check=False)
+            else:
+                result = await conn.run(command, check=False)
             return result.stdout or ""
         except Exception as exc:
             logger.debug("SSH command failed (%s): %s", command[:60], exc)
@@ -93,7 +99,7 @@ def _parse_skill_md_frontmatter(lines: list[str]) -> tuple[str | None, str | Non
     return name, description
 
 
-async def discover_skills(conn, repo_path: str) -> list[dict]:
+async def discover_skills(conn, repo_path: str, machine_id: str | None = None) -> list[dict]:
     """Discover Claude Code skills for a repo via SSH or local subprocess.
 
     Scans both .claude/commands/*.md (flat files) and
@@ -121,8 +127,8 @@ async def discover_skills(conn, repo_path: str) -> list[dict]:
     try:
         # 1. Scan .claude/commands/*.md
         commands_output = await _run_command(
-            conn,
-            f"ls {repo_path}/.claude/commands/*.md 2>/dev/null",
+            conn, f"find {repo_path}/.claude/commands -maxdepth 1 -name '*.md' 2>/dev/null",
+            machine_id=machine_id,
         )
         for filepath in commands_output.strip().split("\n"):
             filepath = filepath.strip()
@@ -135,8 +141,8 @@ async def discover_skills(conn, repo_path: str) -> list[dict]:
 
             # Read first 5 lines for description
             head_output = await _run_command(
-                conn,
-                f"head -5 '{filepath}' 2>/dev/null",
+                conn, f"head -5 '{filepath}' 2>/dev/null",
+                machine_id=machine_id,
             )
             description = _parse_description_from_lines(head_output.split("\n"))
 
@@ -149,8 +155,8 @@ async def discover_skills(conn, repo_path: str) -> list[dict]:
 
         # 2. Scan .claude/skills/*/SKILL.md
         skills_output = await _run_command(
-            conn,
-            f"ls -d {repo_path}/.claude/skills/*/SKILL.md 2>/dev/null",
+            conn, f"ls -d {repo_path}/.claude/skills/*/SKILL.md 2>/dev/null",
+            machine_id=machine_id,
         )
         for filepath in skills_output.strip().split("\n"):
             filepath = filepath.strip()
@@ -166,8 +172,8 @@ async def discover_skills(conn, repo_path: str) -> list[dict]:
 
             # Read first 10 lines for frontmatter
             head_output = await _run_command(
-                conn,
-                f"head -10 '{filepath}' 2>/dev/null",
+                conn, f"head -10 '{filepath}' 2>/dev/null",
+                machine_id=machine_id,
             )
             lines = head_output.split("\n")
             fm_name, fm_desc = _parse_skill_md_frontmatter(lines)

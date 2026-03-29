@@ -122,6 +122,7 @@ export function DiffPanel({
           mrIdentifier={mrIdentifier}
           mrTitle={mrTitle}
           mrStatus={mrStatus}
+          machineId={machineId}
         />
 
         {/* Diff viewer fills remaining space */}
