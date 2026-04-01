@@ -13,7 +13,7 @@ import logging
 import re
 import shlex
 
-from app.services.machine_registry import run_command_on_machine
+from app.services.machine_registry import get_agent_client_for_machine, run_command_on_machine
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,22 @@ async def get_repo_status(machine_id: str, repo_path: str) -> dict:
     """Get git status for a repo on any machine.
 
     Returns: {branch, is_dirty, changed_count, ahead, behind}
+    Routes through agent when available, falls back to SSH exec.
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.git_status(repo_path)
+            return {
+                "branch": result.get("branch", ""),
+                "is_dirty": not result.get("clean", True),
+                "changed_count": len(result.get("files", [])),
+                "ahead": result.get("ahead", 0),
+                "behind": result.get("behind", 0),
+            }
+        except Exception as exc:
+            logger.warning("Agent git_status failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(repo_path)
 
     # Branch name
@@ -61,8 +76,26 @@ async def get_commit_log(
     """Get commit history with structured output.
 
     Uses NUL-separated format for safe parsing of messages with special chars.
+    Routes through agent when available, falls back to SSH exec.
     Returns: list of {sha, message, author, date}
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.git_log(repo_path, count=limit)
+            # Map agent format to backend format
+            return [
+                {
+                    "sha": c["hash"],
+                    "message": c["message"],
+                    "author": c["author"],
+                    "date": c.get("email", ""),  # agent returns email separately
+                }
+                for c in result.get("commits", [])
+            ]
+        except Exception as exc:
+            logger.warning("Agent git_log failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(repo_path)
     safe_limit = int(limit)  # Ensure limit is an integer
 
@@ -90,8 +123,31 @@ async def get_changed_files(machine_id: str, repo_path: str) -> list[dict]:
     """Get list of changed files with status indicators.
 
     Maps git status codes: M=modified, A=added, D=deleted, ??=untracked, R=renamed.
+    Routes through agent when available, falls back to SSH exec.
     Returns: list of {status, path}
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.git_status(repo_path)
+            STATUS_MAP = {
+                "M.": "modified", ".M": "modified", "MM": "modified",
+                "A.": "added", "AM": "added",
+                "D.": "deleted", ".D": "deleted",
+                "R.": "renamed", "??": "untracked",
+            }
+            files = []
+            for f in result.get("files", []):
+                status_code = f.get("status", "")
+                files.append({
+                    "status": STATUS_MAP.get(status_code, status_code),
+                    "status_code": status_code,
+                    "path": f.get("path", ""),
+                })
+            return files
+        except Exception as exc:
+            logger.warning("Agent git_status (changed_files) failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(repo_path)
 
     output = await run_command_on_machine(
@@ -131,9 +187,24 @@ async def get_diff_for_file(
 ) -> str:
     """Get unified diff for a specific file.
 
+    Routes through agent when available, falls back to SSH exec.
+
     Args:
         staged: If True, show staged changes (--cached). Otherwise unstaged.
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            # Use git_exec for file-specific diff
+            args = ["diff"]
+            if staged:
+                args.append("--cached")
+            args.extend(["--", file_path])
+            result = await agent.git_exec(repo_path, args)
+            return result.get("stdout", "")
+        except Exception as exc:
+            logger.warning("Agent git_exec (diff file) failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(repo_path)
     safe_file = shlex.quote(file_path)
     cached_flag = " --cached" if staged else ""
@@ -208,11 +279,20 @@ async def git_push(machine_id: str, repo_path: str) -> str:
 async def list_branches(machine_id: str, repo_path: str) -> list[dict]:
     """List all local branches with current branch indicator.
 
-    Uses plain `git branch` output (reliable across git versions and SSH).
-    Format: "* main" for current, "  feature" for others.
-
+    Routes through agent when available, falls back to SSH exec.
     Returns: list of {name, is_current}
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.git_branches(repo_path)
+            return [
+                {"name": b["name"], "is_current": b.get("current", False)}
+                for b in result.get("branches", [])
+            ]
+        except Exception as exc:
+            logger.warning("Agent git_branches failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(repo_path)
 
     output = await run_command_on_machine(

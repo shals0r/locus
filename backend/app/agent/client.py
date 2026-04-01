@@ -115,6 +115,75 @@ class AgentClient:
         resp.raise_for_status()
         return resp.json().get("stdout", "")
 
+    # -- File operations --
+
+    async def read_file(self, path: str) -> dict:
+        """GET /files/read -- read file content from the agent host."""
+        resp = await self._http.get("/files/read", params={"path": path})
+        resp.raise_for_status()
+        return resp.json()
+
+    async def write_file(self, path: str, content: str, encoding: str = "utf-8") -> dict:
+        """POST /files/write -- write file content on the agent host."""
+        resp = await self._http.post("/files/write", json={
+            "path": path, "content": content, "encoding": encoding,
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+    async def list_directory(self, path: str, recursive: bool = False) -> dict:
+        """GET /files/list -- list directory entries on the agent host."""
+        resp = await self._http.get("/files/list", params={
+            "path": path, "recursive": recursive,
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+    async def stat_file(self, path: str) -> dict:
+        """GET /files/stat -- stat a file on the agent host."""
+        resp = await self._http.get("/files/stat", params={"path": path})
+        resp.raise_for_status()
+        return resp.json()
+
+    # -- Git operations --
+
+    async def git_status(self, repo_path: str) -> dict:
+        """GET /git/status -- repository status from the agent host."""
+        resp = await self._http.get("/git/status", params={"repo_path": repo_path})
+        resp.raise_for_status()
+        return resp.json()
+
+    async def git_branches(self, repo_path: str) -> dict:
+        """GET /git/branches -- list branches from the agent host."""
+        resp = await self._http.get("/git/branches", params={"repo_path": repo_path})
+        resp.raise_for_status()
+        return resp.json()
+
+    async def git_log(self, repo_path: str, count: int = 20) -> dict:
+        """GET /git/log -- commit log from the agent host."""
+        resp = await self._http.get("/git/log", params={
+            "repo_path": repo_path, "count": count,
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+    async def git_diff(self, repo_path: str, ref: str | None = None, cached: bool = False) -> dict:
+        """GET /git/diff -- diff from the agent host."""
+        params: dict = {"repo_path": repo_path, "cached": cached}
+        if ref:
+            params["ref"] = ref
+        resp = await self._http.get("/git/diff", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def git_exec(self, repo_path: str, args: list[str]) -> dict:
+        """POST /git/exec -- run arbitrary git command on the agent host."""
+        resp = await self._http.post("/git/exec", json={
+            "repo_path": repo_path, "args": args,
+        })
+        resp.raise_for_status()
+        return resp.json()
+
     # -- WebSocket URL builders --
 
     def terminal_ws_url(self, session_id: str) -> str:

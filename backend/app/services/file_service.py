@@ -12,7 +12,7 @@ import logging
 import os
 import shlex
 
-from app.services.machine_registry import run_command_on_machine
+from app.services.machine_registry import get_agent_client_for_machine, run_command_on_machine
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +106,20 @@ def detect_language(file_path: str) -> str:
 async def file_stat(machine_id: str, file_path: str) -> dict:
     """Get file size and modification time.
 
-    Tries Linux stat format first, falls back to macOS/BSD format.
+    Routes through agent when available, falls back to SSH exec.
     Returns: {"size": int, "mtime": int}
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.stat_file(file_path)
+            return {
+                "size": result.get("size", 0),
+                "mtime": int(result.get("modified", 0)),
+            }
+        except Exception as exc:
+            logger.warning("Agent stat_file failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(file_path)
 
     try:
@@ -130,9 +141,21 @@ async def file_stat(machine_id: str, file_path: str) -> dict:
 async def read_file(machine_id: str, file_path: str) -> str:
     """Read file content using base64 encoding for binary safety.
 
-    Checks file size before reading (rejects files > 5 MB).
+    Routes through agent when available, falls back to SSH exec.
     Returns the decoded file content as a string.
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.read_file(file_path)
+            content = result.get("content", "")
+            if result.get("encoding") == "base64":
+                import base64 as b64
+                content = b64.b64decode(content).decode("utf-8", errors="replace")
+            return content
+        except Exception as exc:
+            logger.warning("Agent read_file failed, falling back to SSH: %s", exc)
+
     # Check file size first
     stat_info = await file_stat(machine_id, file_path)
     if stat_info["size"] > MAX_FILE_SIZE:
@@ -158,8 +181,17 @@ async def read_file(machine_id: str, file_path: str) -> str:
 async def write_file(machine_id: str, file_path: str, content: str) -> None:
     """Write file content using base64 encode/decode for safety.
 
+    Routes through agent when available, falls back to SSH exec.
     Creates parent directories if needed.
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            await agent.write_file(file_path, content)
+            return
+        except Exception as exc:
+            logger.warning("Agent write_file failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(file_path)
     parent_dir = shlex.quote(os.path.dirname(file_path))
 
@@ -194,9 +226,25 @@ async def list_directory(
 ) -> list[dict]:
     """List directory contents with type info (file vs directory).
 
-    Uses find with -maxdepth to fetch multiple levels in a single SSH call.
+    Routes through agent when available, falls back to SSH exec.
     Prunes heavy directories (.git, node_modules, etc.) for speed.
     """
+    agent = await get_agent_client_for_machine(machine_id)
+    if agent:
+        try:
+            result = await agent.list_directory(dir_path, recursive=(depth > 1))
+            entries = []
+            for e in result.get("entries", []):
+                entries.append({
+                    "name": e.get("name", ""),
+                    "path": os.path.join(dir_path, e.get("name", "")),
+                    "is_dir": e.get("type") == "dir",
+                })
+            entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
+            return entries
+        except Exception as exc:
+            logger.warning("Agent list_directory failed, falling back to SSH: %s", exc)
+
     safe_path = shlex.quote(dir_path)
 
     # Build prune expression to skip heavy dirs
