@@ -1,4 +1,10 @@
-"""Local machine connection manager with Docker/native auto-detection."""
+"""Local machine connection manager with Docker/native auto-detection.
+
+Supports three modes (in priority order):
+1. Host agent (LOCUS_AGENT_URL set and agent reachable)
+2. SSH to host (Docker mode with SSH configured)
+3. Subprocess (native mode, no Docker)
+"""
 
 from __future__ import annotations
 
@@ -27,36 +33,94 @@ def is_running_in_docker() -> bool:
 class LocalMachineManager:
     """Manages the local machine connection.
 
-    When running in Docker: uses SSH to host.docker.internal
-    When running natively: uses asyncio subprocess directly
+    Priority:
+      1. Host agent (if LOCUS_AGENT_URL configured and reachable)
+      2. SSH to host.docker.internal (Docker mode)
+      3. asyncio subprocess (native mode)
 
     Provides a similar interface to SSHManager for consistency.
 
     Status logic:
-      - Native mode: always "online" (subprocess talks to real host)
+      - Agent connected: always "online"
+      - Native mode (no agent): always "online" (subprocess talks to real host)
       - Docker + SSH connected: "online" (SSH reaches the host)
-      - Docker + no SSH: "needs_setup" (container shell is NOT the host)
+      - Docker + no SSH + no agent: "needs_setup" (container shell is NOT the host)
     """
 
     def __init__(self) -> None:
         self._in_docker = is_running_in_docker()
         self._ssh_conn = None  # AsyncSSH connection (Docker mode only)
+        self._agent_client = None  # AgentClient when agent is available
+        self._agent_available: bool = False
 
     @property
     def in_docker(self) -> bool:
         """Whether the backend is running inside a Docker container."""
         return self._in_docker
 
+    @property
+    def agent_client(self):
+        """Return the AgentClient if agent is available, else None."""
+        return self._agent_client if self._agent_available else None
+
     async def initialize(self) -> None:
         """Set up the local machine connection on startup.
 
-        In Docker mode: establishes SSH connection to host.docker.internal.
-        In native mode: no-op (subprocess is used directly).
+        Tries agent first (if configured), then SSH (Docker mode),
+        then subprocess (native mode).
         """
+        # Try agent first if configured
+        if settings.agent_url:
+            await self._try_agent()
+
+        # If agent is available, skip SSH
+        if self._agent_available:
+            return
+
         if self._in_docker:
             await self._connect_to_host()
         else:
             logger.info("Local machine: running in native mode (subprocess)")
+
+    async def _try_agent(self) -> None:
+        """Attempt to connect to the host agent."""
+        from app.agent.client import AgentClient
+        from app.agent.deployer import probe_agent
+
+        token = self._read_agent_token()
+        try:
+            health = await probe_agent(settings.agent_url, token=token)
+            if health is not None:
+                self._agent_client = AgentClient(settings.agent_url, token or "")
+                self._agent_available = True
+                logger.info(
+                    "Local machine: connected via host agent at %s (version=%s)",
+                    settings.agent_url,
+                    health.get("version"),
+                )
+            else:
+                logger.warning(
+                    "Host agent not reachable at %s -- falling back to SSH",
+                    settings.agent_url,
+                )
+        except Exception as exc:
+            logger.warning(
+                "Host agent probe failed at %s: %s -- falling back to SSH",
+                settings.agent_url,
+                exc,
+            )
+
+    def _read_agent_token(self) -> str | None:
+        """Read agent auth token from the configured token file."""
+        if not settings.agent_token_file:
+            return None
+        try:
+            with open(settings.agent_token_file) as f:
+                token = f.read().strip()
+            return token if token else None
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            logger.debug("Could not read agent token file %s: %s", settings.agent_token_file, exc)
+            return None
 
     async def get_connection(self):
         """Get connection object for the local machine.
@@ -68,6 +132,9 @@ class LocalMachineManager:
         IMPORTANT: In Docker mode, None means "not available" (needs_setup).
         In native mode, None means "use subprocess". Callers MUST check
         ``in_docker`` to distinguish these two cases.
+
+        Note: When agent is available, callers should use agent_client property
+        instead of this method. This method exists for SSH/subprocess fallback.
         """
         if self._in_docker:
             return self._ssh_conn
@@ -77,11 +144,14 @@ class LocalMachineManager:
     def is_usable(self) -> bool:
         """Whether the local machine can actually execute commands on the host.
 
+        True when agent is available (any mode).
         True in native mode (subprocess reaches host directly).
         True in Docker mode only when SSH to host is connected.
-        False in Docker mode without SSH — subprocess would run in the
+        False in Docker mode without SSH or agent -- subprocess would run in the
         container, which is NOT the user's host machine.
         """
+        if self._agent_available:
+            return True
         if not self._in_docker:
             return True
         return self._ssh_conn is not None
@@ -89,17 +159,20 @@ class LocalMachineManager:
     async def run_command(self, command: str) -> str:
         """Run a command on the local machine and return stdout.
 
-        In Docker mode: executes via SSH connection.
-        In native mode: executes via asyncio subprocess.
+        Priority: agent > SSH (Docker) > subprocess (native).
 
-        Raises ConnectionError if in Docker mode without SSH (needs_setup).
+        Raises ConnectionError if in Docker mode without SSH or agent (needs_setup).
         """
+        # Prefer agent when available
+        if self._agent_client and self._agent_available:
+            return await self._agent_client.run_command(command)
+
         if self._in_docker:
             if self._ssh_conn is None:
                 raise ConnectionError(
                     "Local machine is not available. In Docker mode, SSH to "
                     "the host must be configured, or the Locus Host Agent "
-                    "must be running (Phase 5)."
+                    "must be running."
                 )
             result = await self._ssh_conn.run(command, check=True)
             return result.stdout
@@ -115,9 +188,11 @@ class LocalMachineManager:
     def get_status(self) -> str:
         """Get local machine status.
 
-        Returns "online" when the host is reachable (native mode, or
-        Docker with SSH), "needs_setup" when in Docker without SSH.
+        Returns "online" when the host is reachable (agent, native mode, or
+        Docker with SSH), "needs_setup" when in Docker without SSH or agent.
         """
+        if self._agent_available:
+            return "online"
         if not self._in_docker:
             return "online"
         if self._ssh_conn is not None:
@@ -135,7 +210,7 @@ class LocalMachineManager:
 
         if not username or not key_path:
             logger.warning(
-                "Local machine SSH not configured — status is 'needs_setup'. "
+                "Local machine SSH not configured -- status is 'needs_setup'. "
                 "Set LOCUS_LOCAL_SSH_USER and LOCUS_LOCAL_SSH_KEY for "
                 "Docker-to-host access, or install the Locus Host Agent."
             )
@@ -159,13 +234,22 @@ class LocalMachineManager:
             )
         except Exception as exc:
             logger.warning(
-                "Local machine: SSH to host failed — status is 'needs_setup': %s",
+                "Local machine: SSH to host failed -- status is 'needs_setup': %s",
                 exc,
             )
             self._ssh_conn = None
 
     async def shutdown(self) -> None:
-        """Close SSH connection if open. Called from FastAPI lifespan."""
+        """Close agent client and SSH connection. Called from FastAPI lifespan."""
+        if self._agent_client:
+            try:
+                await self._agent_client.close()
+            except Exception:
+                pass
+            self._agent_client = None
+            self._agent_available = False
+            logger.info("Local machine: agent client closed")
+
         if self._ssh_conn:
             self._ssh_conn.close()
             try:

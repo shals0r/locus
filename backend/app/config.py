@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     )
     in_docker: bool = False
 
+    # Host agent settings (Docker-to-host via agent instead of SSH)
+    agent_url: str = ""  # e.g., http://host.docker.internal:7700
+    agent_token_file: str = ""  # e.g., /opt/locus-agent/agent.token
+
     # Webhook HMAC secret for feed ingest
     webhook_secret: str = ""
 

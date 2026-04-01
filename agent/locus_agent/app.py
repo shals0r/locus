@@ -48,6 +48,10 @@ def create_app() -> FastAPI:
     from locus_agent.api.claude import router as claude_router
     app.include_router(claude_router)
 
+    # Command execution (auth required)
+    from locus_agent.api.exec import router as exec_router
+    app.include_router(exec_router)
+
     # WebSocket: terminal I/O
     from locus_agent.ws.terminal import router as ws_terminal_router
     app.include_router(ws_terminal_router)
