@@ -40,6 +40,14 @@ def create_app() -> FastAPI:
     from locus_agent.api.terminal import router as terminal_router
     app.include_router(terminal_router)
 
+    # Tmux session management (auth required)
+    from locus_agent.api.tmux import router as tmux_router
+    app.include_router(tmux_router)
+
+    # Claude Code detection (auth required)
+    from locus_agent.api.claude import router as claude_router
+    app.include_router(claude_router)
+
     # WebSocket: terminal I/O
     from locus_agent.ws.terminal import router as ws_terminal_router
     app.include_router(ws_terminal_router)
