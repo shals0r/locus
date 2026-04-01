@@ -35,7 +35,7 @@ severity: major
 
 total: 3
 passed: 2
-issues: 3
+issues: 4
 pending: 0
 skipped: 0
 blocked: 0
@@ -80,4 +80,21 @@ blocked: 0
     - "Connect remote agent path in machine_registry"
     - "Auto-deploy agent to remote machines on SSH connect"
     - "Route file/search/directory operations through agent when available"
+  debug_session: ""
+
+- truth: "Local machine repos should appear automatically without manual env var configuration"
+  status: failed
+  reason: "User reported: no repos detected on local Windows machine — needs configurable default projects directory in UI"
+  severity: major
+  test: observed
+  root_cause: "LOCUS_LOCAL_REPO_SCAN_PATHS env var exists but has no default, no UI to set it, and no auto-discovery. User must manually set env var and restart."
+  artifacts:
+    - path: "backend/app/config.py"
+      issue: "local_repo_scan_paths_raw defaults to empty string — no sensible default"
+    - path: "backend/app/api/search.py"
+      issue: "Repo search uses scan paths but none are configured"
+  missing:
+    - "Settings UI field for local projects root directory"
+    - "Auto-scan configured directory for git repos"
+    - "Persist setting in DB (not just env var) so it survives without restart"
   debug_session: ""
