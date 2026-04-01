@@ -158,7 +158,7 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Agent package skeleton (FastAPI app, auth, config, CLI, health, build script)
+- [x] 05-01-PLAN.md — Agent package skeleton (FastAPI app, auth, config, CLI, health, build script)
 - [ ] 05-02-PLAN.md — Agent terminal sessions (Unix tmux + Windows ConPTY + session pool + WS endpoints)
 - [ ] 05-03-PLAN.md — Agent tmux management + Claude detection REST endpoints
 - [ ] 05-04-PLAN.md — Locus backend AgentClient + deployer + WebSocket proxy
@@ -195,5 +195,5 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
 | 3. Code Review, Diff & Editing | 10/10 | Complete | 2026-03-28 |
 | 4. Integrations Runner & Skills | 6/6 | Complete | 2026-04-01 |
-| 5. Host Agent | 0/6 | Not started | - |
+| 5. Host Agent | 1/6 | In Progress|  |
 | 6. Integration Gap Closure | 0/? | Not started | - |
