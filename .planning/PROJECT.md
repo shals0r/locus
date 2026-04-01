@@ -12,7 +12,7 @@ Open one tool and immediately know what needs attention, across every repo, mach
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Host agent enables Docker-to-host terminal access, session persistence, and Claude detection without SSH — Validated in Phase 5: Host Agent
 
 ### Active
 
@@ -114,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 after initialization*
+*Last updated: 2026-04-01 after Phase 5 completion*
