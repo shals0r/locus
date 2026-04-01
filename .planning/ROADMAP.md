@@ -163,7 +163,7 @@ Plans:
 - [x] 05-03-PLAN.md — Agent tmux management + Claude detection REST endpoints
 - [x] 05-04-PLAN.md — Locus backend AgentClient + deployer + WebSocket proxy
 - [x] 05-05-PLAN.md — Backend integration (machine_registry, ws/terminal, claude, docker-compose rewiring)
-- [ ] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
+- [x] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
 
 **UI hint**: no
 

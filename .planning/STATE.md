@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-04-01T11:44:52.507Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-04-01T11:49:55.397Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 46
-  completed_plans: 45
+  completed_plans: 46
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 05 (host-agent) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 All plans executed (6/6)
 Last activity: 2026-04-01
 
@@ -77,6 +77,7 @@ Progress: [██████████] 100% (40/40 plans across phases 1–4
 | Phase 05-01 P01 | 2min | 2 tasks | 11 files |
 | Phase 05 P04 | 3min | 2 tasks | 5 files |
 | Phase 05 P05 | 4min | 2 tasks | 9 files |
+| Phase 05 P06 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,7 @@ Recent decisions affecting current work:
 - [Phase 05]: httpx.AsyncClient with Bearer auth for agent REST, websockets lib for outbound WS proxy with 1MB backpressure
 - [Phase 05]: Agent-first fallback: LocalMachineManager probes agent on startup, falls back to SSH then subprocess
 - [Phase 05]: get_agent_client_for_machine in registry returns AgentClient or None, keeping SSH path backward-compatible
+- [Phase 05]: 10MB file size limit on agent reads (vs 5MB SSH), dangerous git blocklist at agent level, porcelain v2 for structured git status parsing
 
 ### Pending Todos
 
@@ -150,6 +152,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T11:44:52.501Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-04-01T11:49:55.392Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
