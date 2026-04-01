@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-03-28T20:03:40.164Z"
-last_activity: 2026-03-28
+stopped_at: Phase 5 context gathered
+last_updated: "2026-04-01T10:47:36.026Z"
+last_activity: 2026-04-01
 progress:
-  total_phases: 6
-  completed_phases: 4
+  total_phases: 7
+  completed_phases: 5
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
   percent: 100
 ---
 
@@ -21,16 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Open one tool and immediately know what needs attention, across every repo, machine, agent session, and work stream -- then act on it without switching context.
-**Current focus:** Phase 04 — integrations-runner-skills
+**Current focus:** Phase 05 — host-agent (next up)
 
 ## Current Position
 
-Phase: 04 (integrations-runner-skills) — EXECUTING
-Plan: 5 of 6
-Status: Ready to execute
-Last activity: 2026-03-28
+Phase: 04 (integrations-runner-skills) — COMPLETE
+All plans executed (6/6)
+Last activity: 2026-04-01
 
-Progress: [██████████] 100% (11/11 plans)
+Progress: [██████████] 100% (40/40 plans across phases 1–4)
 
 ## Performance Metrics
 
@@ -134,7 +133,8 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 1.1 inserted after Phase 1: Local Machine Support (URGENT) -- Phase 1 built everything SSH-only; local dev (repos, terminals, Claude sessions on the host machine) has no support. "This Machine" must be first-class before Phase 2 builds the git sidebar on top of it.
-- Phase 5 added: Host Agent -- lightweight host-side process bridging Docker-to-host for "This Machine" terminals, session persistence, and Claude detection without SSH. Discovered during Phase 1.1 verification: Docker containers can't access the host without SSH or an agent, and the subprocess fallback incorrectly gives a container shell. Agent handles Windows (no tmux) and Unix (real tmux) hosts.
+- Phase 5 added: Host Agent
+- Phase 6 added: Integration Gap Closure — fixes gaps from Phase 4 verification (Integrator rewrite, skill command injection, worker lifecycle, settings wiring) -- lightweight host-side process bridging Docker-to-host for "This Machine" terminals, session persistence, and Claude detection without SSH. Discovered during Phase 1.1 verification: Docker containers can't access the host without SSH or an agent, and the subprocess fallback incorrectly gives a container shell. Agent handles Windows (no tmux) and Unix (real tmux) hosts.
 
 ### Blockers/Concerns
 
@@ -142,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T20:03:40.156Z
-Stopped at: Completed 04-05-PLAN.md
-Resume file: None
+Last session: 2026-04-01T10:47:36.020Z
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-host-agent/05-CONTEXT.md
