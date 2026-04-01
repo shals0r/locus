@@ -41,7 +41,12 @@ services:
     volumes:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
       - workerdata:/data/workers
-      - agent-data:/opt/locus-agent:ro
+      - type: bind
+        source: ${LOCUS_AGENT_DIR:-${HOME}/.locus-agent}
+        target: /opt/locus-agent
+        read_only: true
+        bind:
+          create_host_path: true
 
   app-dev:
     build:
@@ -72,7 +77,12 @@ services:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
       - ./backend:/app
       - workerdata:/data/workers
-      - agent-data:/opt/locus-agent:ro
+      - type: bind
+        source: ${LOCUS_AGENT_DIR:-${HOME}/.locus-agent}
+        target: /opt/locus-agent
+        read_only: true
+        bind:
+          create_host_path: true
 
   frontend-dev:
     build:
@@ -94,9 +104,3 @@ services:
 volumes:
   pgdata:
   workerdata:
-  agent-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${LOCUS_AGENT_DIR:-/home/${USER:-locus}/.locus-agent}
