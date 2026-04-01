@@ -6,9 +6,13 @@
 <domain>
 ## Phase Boundary
 
-Deliver a lightweight, cross-platform agent process that runs on every connected machine (local host and remotes), bridging Docker-to-host and Locus-to-machine communication. The agent replaces raw SSH command execution with a fast HTTP/WebSocket API for terminals, file operations, git operations, and Claude detection. SSH becomes the bootstrap transport only — used to deploy and manage the agent, which then handles all ongoing operations.
+Deliver a lightweight, cross-platform agent process that runs on every connected machine (local host and remotes), bridging Docker-to-host and Locus-to-machine communication. SSH becomes the bootstrap transport only — used to deploy and manage the agent, which then handles all ongoing operations.
 
 **Scope change from original roadmap:** The agent is not just for "This Machine" (local host). It is deployed to ALL machines, similar to VS Code's SSH remote server. This is a universal agent architecture.
+
+**Phased delivery:**
+- **Phase 5a (Core Agent):** Agent process, deploy pipeline, terminals, tmux/session management, Claude detection, session persistence. This is the must-have that makes "This Machine" and all remote machines work through the agent.
+- **Phase 5b (Performance APIs):** File operations API, git operations API, event pushing via filesystem watchers. These are speed optimizations — everything works via SSH exec today, just slower. Ships after 5a since the agent infrastructure is already in place.
 
 </domain>
 
@@ -23,7 +27,7 @@ Deliver a lightweight, cross-platform agent process that runs on every connected
 - **D-05:** Agent written in Python + FastAPI — same stack as Locus backend, shared schemas and patterns
 - **D-06:** Docker container discovers agent via environment variable (LOCUS_AGENT_URL=http://host.docker.internal:7700)
 
-### Agent API Surface
+### Agent API Surface (Phase 5b — ships after core agent)
 - **D-07:** Full file operations API — read, write, list directory, stat, search (ripgrep). Git sidebar, file tree, and Monaco editor talk directly to agent instead of SSH exec.
 - **D-08:** Full git operations API — status, diff, branch, pull, push. Runs git commands locally on the machine. Much faster than SSH exec per-command.
 - **D-09:** Claude detection endpoint — agent detects Claude Code sessions via tmux pane scanning + marker files
@@ -34,8 +38,8 @@ Deliver a lightweight, cross-platform agent process that runs on every connected
 - **D-12:** Universal agent — deployed to ALL machines, not just local host. SSH is the bootstrap transport only.
 - **D-13:** Auto-deploy via SCP + SSH exec on first connect: probe :7700, if no agent, upload tarball, extract, start. Same flow for all machines including Windows.
 - **D-14:** Agent installs to ~/.locus-agent/ on each machine (same pattern as ~/.vscode-server/)
-- **D-15:** Bundled virtualenv in tarball — includes all dependencies (uvicorn, fastapi, pywinpty on Windows). No pip or internet needed on remote.
-- **D-16:** Per-platform tarballs: linux-x64, darwin-arm64, win-x64. Docker image bundles all three. Deploy logic detects remote OS via SSH and sends correct tarball.
+- **D-15:** Agent packaged as a Python zipapp (.pyz) using shiv — single self-contained file that runs with any compatible Python 3.12+ interpreter. All pure-Python deps (uvicorn, fastapi) are bundled inside. For the one native dep (pywinpty on Windows), the agent pip-installs just that package into ~/.locus-agent/venv/ on first run. This avoids the portability nightmare of shipping pre-built virtualenvs across platforms.
+- **D-16:** One .pyz file per platform (linux-x64, darwin-arm64, win-x64) — ~2-5MB each. Docker image bundles all three. Deploy logic detects remote OS via SSH and sends correct file.
 - **D-17:** Auto-update on version mismatch — agent reports version via /health, Locus re-deploys automatically if versions differ. Zero user action.
 - **D-18:** SSH connection kept alive as fallback control channel — if agent crashes, Locus can restart it via SSH. Also used for agent updates.
 - **D-19:** Minimal CLI on each machine: `locus-agent status`, `locus-agent stop`, `locus-agent logs` for manual debugging.
@@ -45,8 +49,8 @@ Deliver a lightweight, cross-platform agent process that runs on every connected
 - **D-21:** Unix: agent proxies to system tmux. Creates sessions in a "locus-" prefixed group. User can manually attach via `tmux attach` outside Locus.
 - **D-22:** Windows: agent manages sessions directly with its own process pool (no tmux available).
 - **D-23:** Scrollback: tmux scrollback on Unix (no agent-side duplication), agent-side 64KB ring buffer on Windows only.
-- **D-24:** Agent restart survival: Unix — tmux sessions survive, agent re-discovers locus-* sessions on restart. Windows — agent saves session state to disk before exit, shows "session ended" on restart (processes can't survive without tmux).
-- **D-25:** Agent proactively pushes state changes (file changes, git status, Claude sessions) to Locus via persistent WebSocket using filesystem watchers (inotify on Linux, FSEvents on macOS, ReadDirectoryChanges on Windows). No polling.
+- **D-24:** Agent restart survival: Unix — tmux sessions survive, agent re-discovers locus-* sessions on restart. Windows — sessions do not survive agent crashes (no tmux equivalent). UI shows "Session ended — agent restarted" and user opens a new terminal. Windows users who need crash survival should use WSL + tmux (agent supports that path automatically).
+- **D-25:** Hybrid event model: agent pushes state changes (file changes, git status, Claude sessions) via filesystem watchers (inotify/FSEvents/ReadDirectoryChanges) as best-effort. Locus can always call GET endpoints to refresh on demand. If watchers hit limits or fail silently, nothing breaks — UI updates on next manual action or periodic heartbeat. Graceful degradation, not hard dependency on watchers.
 
 ### Windows Support
 - **D-26:** Full Windows support in v1 — not deferred.
@@ -56,10 +60,11 @@ Deliver a lightweight, cross-platform agent process that runs on every connected
 
 ### Claude's Discretion
 - Agent startup timeout and retry logic
-- Filesystem watcher debounce intervals
-- Exact tarball compression format and structure
+- Filesystem watcher debounce intervals and fallback heartbeat frequency
+- Zipapp build tooling (shiv vs zipapp stdlib vs custom)
 - Agent process supervision details (PID file management, signal handling)
 - Scrollback buffer size on Windows (64KB default, can tune)
+- Exact split of work between Phase 5a and 5b plans
 
 </decisions>
 
@@ -117,8 +122,9 @@ Deliver a lightweight, cross-platform agent process that runs on every connected
 
 - VS Code's SSH remote server is the reference model — auto-deploy, invisible to user, manages everything on the remote
 - Zero setup is non-negotiable — user adds a machine, everything else happens automatically
-- Agent tarball must be self-contained (bundled venv) so it works on airgapped machines with no internet
+- Agent .pyz must be self-contained (zipapp with bundled deps) so it works on airgapped machines with no internet (only exception: pywinpty on Windows, pip-installed once on first run)
 - SSH becomes bootstrap-only — fast path is always through the agent's HTTP/WS API
+- Don't over-engineer Windows session survival — be honest that sessions don't survive crashes without tmux. WSL is the answer for Windows users who need that.
 
 </specifics>
 
