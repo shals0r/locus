@@ -52,6 +52,14 @@ def create_app() -> FastAPI:
     from locus_agent.api.exec import router as exec_router
     app.include_router(exec_router)
 
+    # File operations (auth required)
+    from locus_agent.api.files import router as files_router
+    app.include_router(files_router)
+
+    # Git operations (auth required)
+    from locus_agent.api.git import router as git_router
+    app.include_router(git_router)
+
     # WebSocket: terminal I/O
     from locus_agent.ws.terminal import router as ws_terminal_router
     app.include_router(ws_terminal_router)
