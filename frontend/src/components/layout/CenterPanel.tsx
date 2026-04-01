@@ -139,11 +139,16 @@ export function CenterPanel() {
             <div className="mt-4 space-y-3 text-left">
               <div className="rounded border border-border bg-secondary p-3">
                 <p className="text-sm font-medium text-primary-text">
-                  Option A: Locus Host Agent
+                  Option A: Locus Host Agent (Recommended)
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   A lightweight process running on your host that bridges Docker
-                  to the host. Coming in Phase 5.
+                  to the host.
+                </p>
+                <pre className="mt-2 rounded bg-dominant px-3 py-2 text-xs text-accent font-mono whitespace-pre"><code>pip install ./agent
+locus-agent start</code></pre>
+                <p className="mt-1 text-xs text-muted">
+                  Runs on port 7700 by default. Locus auto-detects the agent from Docker.
                 </p>
               </div>
               <div className="rounded border border-border bg-secondary p-3">
