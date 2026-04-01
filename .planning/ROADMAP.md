@@ -155,7 +155,7 @@ Plans:
   4. On Unix hosts, agent uses real tmux for session persistence; on Windows hosts (no WSL), agent manages sessions directly with its own process pool
   5. Local Claude Code sessions on the host are detected and shown in the Claude overview
   6. "This Machine" shows as "needs setup" with clear instructions when agent is not running, instead of silently giving a container shell
-**Plans**: 7 plans
+**Plans**: 10 plans
 
 Plans:
 - [x] 05-01-PLAN.md — Agent package skeleton (FastAPI app, auth, config, CLI, health, build script)
@@ -165,8 +165,11 @@ Plans:
 - [x] 05-05-PLAN.md — Backend integration (machine_registry, ws/terminal, claude, docker-compose rewiring)
 - [x] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
 - [x] 05-07-PLAN.md — [GAP] Replace stale needs_setup placeholder with actual agent start instructions
+- [ ] 05-08-PLAN.md — [GAP] Remote agent auto-deploy on SSH connect + Claude detection fix for VPS
+- [ ] 05-09-PLAN.md — [GAP] Local repo scan paths settings UI + DB persistence
+- [ ] 05-10-PLAN.md — [GAP] File content search (grep) across repos in command palette
 
-**UI hint**: no
+**UI hint**: yes
 
 ### Phase 6: Integration Gap Closure
 **Goal**: Fix gaps surfaced by Phase 4 verification — Integrator service rewrite, skill command injection, worker lifecycle testing, and settings section wiring
@@ -196,5 +199,5 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
 | 3. Code Review, Diff & Editing | 10/10 | Complete | 2026-03-28 |
 | 4. Integrations Runner & Skills | 6/6 | Complete | 2026-04-01 |
-| 5. Host Agent | 6/7 | In Progress|  |
+| 5. Host Agent | 7/10 | In Progress|  |
 | 6. Integration Gap Closure | 0/? | Not started | - |
