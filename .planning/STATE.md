@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-04-01T11:32:10.570Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-04-01T11:39:17.521Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 46
-  completed_plans: 41
+  completed_plans: 44
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 05 (host-agent) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 All plans executed (6/6)
 Last activity: 2026-04-01
 
@@ -75,6 +75,7 @@ Progress: [██████████] 100% (40/40 plans across phases 1–4
 | Phase 04 P03 | 3min | 2 tasks | 7 files |
 | Phase 04 P05 | 5min | 2 tasks | 10 files |
 | Phase 05-01 P01 | 2min | 2 tasks | 11 files |
+| Phase 05 P04 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,7 @@ Recent decisions affecting current work:
 - [Phase 04]: Heuristic structured card extraction from Claude response text (regex patterns for credentials, test results, deploy readiness)
 - [Phase 04]: Lazy import of worker_supervisor in deploy endpoint for optional dependency handling
 - [Phase 05]: AgentSettings uses LOCUS_AGENT_ env prefix, token via secrets.token_urlsafe with 0o600 perms
+- [Phase 05]: httpx.AsyncClient with Bearer auth for agent REST, websockets lib for outbound WS proxy with 1MB backpressure
 
 ### Pending Todos
 
@@ -145,6 +147,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T11:32:10.563Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-04-01T11:39:17.514Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

@@ -159,9 +159,9 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md — Agent package skeleton (FastAPI app, auth, config, CLI, health, build script)
-- [ ] 05-02-PLAN.md — Agent terminal sessions (Unix tmux + Windows ConPTY + session pool + WS endpoints)
-- [ ] 05-03-PLAN.md — Agent tmux management + Claude detection REST endpoints
-- [ ] 05-04-PLAN.md — Locus backend AgentClient + deployer + WebSocket proxy
+- [x] 05-02-PLAN.md — Agent terminal sessions (Unix tmux + Windows ConPTY + session pool + WS endpoints)
+- [x] 05-03-PLAN.md — Agent tmux management + Claude detection REST endpoints
+- [x] 05-04-PLAN.md — Locus backend AgentClient + deployer + WebSocket proxy
 - [ ] 05-05-PLAN.md — Backend integration (machine_registry, ws/terminal, claude, docker-compose rewiring)
 - [ ] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
 
