@@ -12,12 +12,13 @@ Locus delivers an engineering control plane in four phases: first the Docker sta
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infrastructure & Terminal Core** - Docker stack, auth, SSH terminals, machine management, and three-panel layout shell
+- [x] **Phase 1: Infrastructure & Terminal Core** - Docker stack, auth, SSH terminals, machine management, and three-panel layout shell
 - [x] **Phase 1.1: Local Machine Support** (INSERTED) - Local terminals, repos, and Claude sessions without SSH — "This Machine" as first-class citizen
 - [x] **Phase 2: Repository Management & Work Feed** - Multi-repo git sidebar, unified work feed with ingest API, task board with promote flows, context-aware working sessions, command palette
-- [ ] **Phase 3: Code Review, Diff & Editing** - Local and MR diff viewing, AI-assisted review, Monaco-based code editor with file tree and save-back
-- [ ] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
+- [x] **Phase 3: Code Review, Diff & Editing** - Local and MR diff viewing, AI-assisted review, Monaco-based code editor with file tree and save-back
+- [x] **Phase 4: Integrations Runner & Skills** - Self-building integration workers, skills system, Integrator meta-skill
 - [ ] **Phase 5: Host Agent** - Lightweight host-side agent enabling Docker-to-host terminal access, session persistence, and Claude detection without SSH
+- [ ] **Phase 6: Integration Gap Closure** - Integrator rewrite, skill command injection, worker lifecycle testing, settings wiring
 
 ## Phase Details
 
@@ -43,7 +44,7 @@ Plans:
 - [x] 01-07-PLAN.md — Terminal rendering + Claude detection + status indicators
 - [x] 01-08-PLAN.md — [GAP] Backend tmux detach-on-disconnect, reattach-on-reconnect
 - [x] 01-09-PLAN.md — [GAP] Frontend terminal persistence across tab switches
-- [ ] 01-10-PLAN.md — [GAP] Mount ClaudeOverview + add /tmux-sessions endpoints
+- [x] 01-10-PLAN.md — [GAP] Mount ClaudeOverview + add /tmux-sessions endpoints
 
 **UI hint**: yes
 
@@ -110,16 +111,16 @@ Plans:
 **Plans**: 10 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Backend file service + file API + review/file schemas
-- [ ] 03-02-PLAN.md — Review provider abstraction (GitHub + GitLab) + AI review service
-- [ ] 03-03-PLAN.md — Unified tab system (terminal + diff + editor) + sidebar tabs (Git | Files | Search)
-- [ ] 03-04-PLAN.md — Replace DiffViewer with @git-diff-view/react (split/unified, syntax highlight, virtual scroll, file list)
-- [ ] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
-- [ ] 03-06-PLAN.md — AI review trigger + annotations (gutter icons, side panel, batch post, review submit)
-- [ ] 03-07-PLAN.md — Monaco editor + file tree + file operations + editor tabs
-- [ ] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
+- [x] 03-01-PLAN.md — Backend file service + file API + review/file schemas
+- [x] 03-02-PLAN.md — Review provider abstraction (GitHub + GitLab) + AI review service
+- [x] 03-03-PLAN.md — Unified tab system (terminal + diff + editor) + sidebar tabs (Git | Files | Search)
+- [x] 03-04-PLAN.md — Replace DiffViewer with @git-diff-view/react (split/unified, syntax highlight, virtual scroll, file list)
+- [x] 03-05-PLAN.md — MR/PR review API + metadata header + inline comments + thread replies
+- [x] 03-06-PLAN.md — AI review trigger + annotations (gutter icons, side panel, batch post, review submit)
+- [x] 03-07-PLAN.md — Monaco editor + file tree + file operations + editor tabs
+- [x] 03-08-PLAN.md — Review chat panel + MR/PR task card actions
 - [x] 03-09-PLAN.md — Cross-file search + breadcrumb navigation + command palette extensions + diff-to-editor
-- [ ] 03-10-PLAN.md — Visual and functional verification checkpoint
+- [x] 03-10-PLAN.md — Visual and functional verification checkpoint
 
 **UI hint**: yes
 
@@ -139,13 +140,14 @@ Plans:
 - [x] 04-03-PLAN.md — Worker management frontend (stores, cards, log panel, quick config) in Settings page
 - [x] 04-04-PLAN.md — Skill discovery backend + skill API + SkillBar frontend in sidebar
 - [x] 04-05-PLAN.md — Integrator backend service (Claude Code CLI routing) + Integrator chat panel frontend
-- [ ] 04-06-PLAN.md — Visual and functional verification checkpoint
+- [x] 04-06-PLAN.md — Visual and functional verification checkpoint
 
 **UI hint**: yes
 
 ### Phase 5: Host Agent
-**Goal**: A lightweight agent process running on the host machine bridges Docker-to-host communication, enabling "This Machine" terminals, tmux session management, Claude detection, and repo scanning without requiring SSH setup on the host
+**Goal**: A lightweight universal agent process deployed to every connected machine, replacing SSH as the primary communication channel with an HTTP/WebSocket API for terminals, tmux, Claude detection, file operations, and git operations
 **Depends on**: Phase 1.1
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05, AGENT-06
 **Success Criteria** (what must be TRUE):
   1. User can start the host agent with a single command (`locus-agent start`) and Locus auto-detects it from Docker
   2. User can open terminal sessions on the host machine from Locus running in Docker, with full terminal UX (colors, mouse, resize)
@@ -153,23 +155,45 @@ Plans:
   4. On Unix hosts, agent uses real tmux for session persistence; on Windows hosts (no WSL), agent manages sessions directly with its own process pool
   5. Local Claude Code sessions on the host are detected and shown in the Claude overview
   6. "This Machine" shows as "needs setup" with clear instructions when agent is not running, instead of silently giving a container shell
+**Plans**: 6 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Agent package skeleton (FastAPI app, auth, config, CLI, health, build script)
+- [ ] 05-02-PLAN.md — Agent terminal sessions (Unix tmux + Windows ConPTY + session pool + WS endpoints)
+- [ ] 05-03-PLAN.md — Agent tmux management + Claude detection REST endpoints
+- [ ] 05-04-PLAN.md — Locus backend AgentClient + deployer + WebSocket proxy
+- [ ] 05-05-PLAN.md — Backend integration (machine_registry, ws/terminal, claude, docker-compose rewiring)
+- [ ] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
+
+**UI hint**: no
+
+### Phase 6: Integration Gap Closure
+**Goal**: Fix gaps surfaced by Phase 4 verification — Integrator service rewrite, skill command injection, worker lifecycle testing, and settings section wiring
+**Depends on**: Phase 4
+**Requirements**: Derived from 04-06-SUMMARY.md gap list
+**Success Criteria** (what must be TRUE):
+  1. Integrator chat produces working integration workers via Claude Code CLI (no regex hacks, correct paths, proper machine detection)
+  2. Clicking a skill chip in the sidebar sends the skill command to the terminal (not just opens a terminal)
+  3. Worker start/stop/restart/logs all function end-to-end with real workers in the DB
+  4. Settings sections (Machines, Credentials, Claude Code) are fully functional, not just rendered
 **Plans**: TBD
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 5 to break down)
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
 
-**UI hint**: no
+**UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Terminal Core | 9/10 | Gap closure planned | - |
+| 1. Infrastructure & Terminal Core | 10/10 | Complete | 2026-03-28 |
 | 1.1 Local Machine Support (INSERTED) | 3/3 | Complete | 2026-03-26 |
 | 2. Repository Management & Work Feed | 11/11 | Complete | 2026-03-27 |
-| 3. Code Review, Diff & Editing | 0/10 | Planned | - |
-| 4. Integrations Runner & Skills | 5/6 | In Progress|  |
-| 5. Host Agent | 0/? | Not started | - |
+| 3. Code Review, Diff & Editing | 10/10 | Complete | 2026-03-28 |
+| 4. Integrations Runner & Skills | 6/6 | Complete | 2026-04-01 |
+| 5. Host Agent | 0/6 | Not started | - |
+| 6. Integration Gap Closure | 0/? | Not started | - |
