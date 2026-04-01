@@ -20,7 +20,8 @@ from app.database import async_session_factory
 from app.local.manager import local_machine_manager
 from app.local.tmux import check_tmux_session_exists_local, create_local_terminal_in_tmux
 from app.models.session import TerminalSession
-from app.services.machine_registry import is_local_machine
+from app.agent.proxy import proxy_terminal_to_agent
+from app.services.machine_registry import get_agent_client_for_machine, is_local_machine
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import check_tmux_session_exists, create_terminal_in_tmux
 
@@ -280,6 +281,53 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
 
     machine_id = str(terminal_session.machine_id)
 
+    try:
+        cols = int(websocket.query_params.get("cols", "120"))
+        rows = int(websocket.query_params.get("rows", "40"))
+    except ValueError:
+        cols, rows = 120, 40
+
+    # --- Agent proxy path: if agent is available, proxy through it ---
+    agent_client = await get_agent_client_for_machine(machine_id)
+    if agent_client is not None:
+        try:
+            result = await agent_client.create_terminal(
+                cols=cols,
+                rows=rows,
+                working_dir=terminal_session.repo_path,
+                tmux_session=terminal_session.tmux_session_name,
+            )
+            agent_sid = result.get("session_id", "")
+            tmux_name = result.get("tmux_name")
+
+            # Save tmux name if new
+            if tmux_name and not terminal_session.tmux_session_name:
+                try:
+                    from sqlalchemy import update as sa_update
+                    async with async_session_factory() as db:
+                        await db.execute(
+                            sa_update(TerminalSession)
+                            .where(TerminalSession.id == terminal_session.id)
+                            .values(tmux_session_name=tmux_name)
+                        )
+                        await db.commit()
+                except Exception:
+                    pass
+
+            logger.info(
+                "TERMINAL: Proxying session=%s to agent terminal=%s",
+                session_id,
+                agent_sid,
+            )
+            await proxy_terminal_to_agent(websocket, agent_client.terminal_ws_url(agent_sid))
+        except Exception as exc:
+            logger.warning("TERMINAL: Agent proxy failed: %s, falling back to SSH", exc)
+            # Fall through to SSH/subprocess path below
+        else:
+            return  # Agent proxy handled the session
+
+    # --- SSH / subprocess path (fallback) ---
+
     # For local machine in Docker mode without SSH, block terminal
     if is_local_machine(machine_id) and not local_machine_manager.is_usable:
         try:
@@ -303,12 +351,6 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
             await websocket.close(code=4003, reason="Machine not connected")
             return
 
-    try:
-        cols = int(websocket.query_params.get("cols", "120"))
-        rows = int(websocket.query_params.get("rows", "40"))
-    except ValueError:
-        cols, rows = 120, 40
-
     sp = await _get_or_create_process(session_id, terminal_session, machine_id, cols, rows)
 
     # Attach this WebSocket as the active output target
@@ -323,7 +365,7 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
             logger.warning("Terminal scrollback replay failed: %s", exc)
 
     try:
-        # Read from WebSocket → SSH stdin
+        # Read from WebSocket -> SSH stdin
         while True:
             message = await websocket.receive()
             if message.get("type") == "websocket.disconnect":

@@ -1,4 +1,10 @@
-"""Claude Code session detection on local and remote machines via tmux."""
+"""Claude Code session detection on local and remote machines via tmux.
+
+Supports three detection paths:
+1. Agent-based (preferred for local machine when agent is available)
+2. SSH-based (remote machines and Docker-mode local)
+3. Subprocess-based (native mode local machine)
+"""
 
 from __future__ import annotations
 
@@ -8,6 +14,8 @@ import logging
 import time
 
 import asyncssh
+
+from app.agent.client import AgentClient
 
 logger = logging.getLogger(__name__)
 
@@ -234,3 +242,63 @@ async def detect_claude_session_status_local(
     # Fall back to pane capture
     waiting = await detect_waiting_for_input_local(tmux_session, window_index)
     return "waiting" if waiting else "running"
+
+
+# ---------------------------------------------------------------------------
+# Agent-based variants (for host agent path)
+# ---------------------------------------------------------------------------
+
+
+async def detect_claude_sessions_via_agent(
+    agent_client: AgentClient,
+) -> list[dict]:
+    """Detect running Claude Code sessions via the host agent.
+
+    Returns same dict format as the SSH and subprocess versions.
+    """
+    try:
+        return await agent_client.detect_claude_sessions()
+    except Exception as exc:
+        logger.warning("Failed to detect Claude sessions via agent: %s", exc)
+        return []
+
+
+async def detect_claude_sessions_for_machine(machine_id: str) -> list[dict]:
+    """Unified Claude session detection for any machine.
+
+    Routes to the best available detection method:
+    1. Agent (if available for the machine)
+    2. Subprocess (native mode local machine)
+    3. SSH (Docker mode local or remote machines)
+
+    Args:
+        machine_id: Machine identifier ("local" or a UUID string).
+
+    Returns:
+        List of Claude session dicts with keys: tmux_session, window_index,
+        window_name, command, status.
+    """
+    from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
+    from app.services.machine_registry import get_agent_client_for_machine
+    from app.ssh.manager import ssh_manager
+
+    # Try agent first
+    agent_client = await get_agent_client_for_machine(machine_id)
+    if agent_client is not None:
+        return await detect_claude_sessions_via_agent(agent_client)
+
+    # Local machine paths
+    if machine_id == LOCAL_MACHINE_ID:
+        if local_machine_manager.in_docker:
+            conn = await local_machine_manager.get_connection()
+            if conn is not None:
+                return await detect_claude_sessions(conn)
+            return []  # Docker without SSH -- can't detect
+        else:
+            return await detect_claude_sessions_local()
+
+    # Remote machine via SSH
+    conn = await ssh_manager.get_connection(machine_id)
+    if conn is not None:
+        return await detect_claude_sessions(conn)
+    return []

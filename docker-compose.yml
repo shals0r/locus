@@ -31,6 +31,8 @@ services:
       LOCUS_LOCAL_SSH_PORT: ${LOCUS_HOST_SSH_PORT:-22}
       LOCUS_LOCAL_SSH_USER: ${LOCUS_HOST_SSH_USER:-}
       LOCUS_LOCAL_SSH_KEY: /home/locus/.ssh/id_ed25519
+      LOCUS_AGENT_URL: "http://host.docker.internal:7700"
+      LOCUS_AGENT_TOKEN_FILE: "/opt/locus-agent/agent.token"
     ports:
       - "8080:8080"
     depends_on:
@@ -39,6 +41,7 @@ services:
     volumes:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
       - workerdata:/data/workers
+      - agent-data:/opt/locus-agent:ro
 
   app-dev:
     build:
@@ -58,6 +61,8 @@ services:
       LOCUS_LOCAL_SSH_PORT: ${LOCUS_HOST_SSH_PORT:-22}
       LOCUS_LOCAL_SSH_USER: ${LOCUS_HOST_SSH_USER:-}
       LOCUS_LOCAL_SSH_KEY: /home/locus/.ssh/id_ed25519
+      LOCUS_AGENT_URL: "http://host.docker.internal:7700"
+      LOCUS_AGENT_TOKEN_FILE: "/opt/locus-agent/agent.token"
     ports:
       - "8000:8000"
     depends_on:
@@ -67,6 +72,7 @@ services:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/locus/.ssh:ro
       - ./backend:/app
       - workerdata:/data/workers
+      - agent-data:/opt/locus-agent:ro
 
   frontend-dev:
     build:
@@ -88,3 +94,9 @@ services:
 volumes:
   pgdata:
   workerdata:
+  agent-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOCUS_AGENT_DIR:-/home/${USER:-locus}/.locus-agent}
