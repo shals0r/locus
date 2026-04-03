@@ -232,13 +232,20 @@ async def list_directory(
     agent = await get_agent_client_for_machine(machine_id)
     if agent:
         try:
-            result = await agent.list_directory(dir_path, recursive=(depth > 1))
+            # Never use recursive=True — it scans the entire tree including
+            # node_modules/.git (60k+ entries). Instead, list one level at a
+            # time. The frontend caches each level and expands instantly.
+            result = await agent.list_directory(dir_path, recursive=False)
             entries = []
+            sep = "/" if "/" in dir_path else "\\"
             for e in result.get("entries", []):
+                name = e.get("name", "")
+                if name in _PRUNE_DIRS:
+                    continue
                 entries.append({
-                    "name": e.get("name", ""),
-                    "path": os.path.join(dir_path, e.get("name", "")),
-                    "is_dir": e.get("type") == "dir",
+                    "name": name,
+                    "path": f"{dir_path.rstrip(sep)}{sep}{name}",
+                    "is_dir": e.get("type") in ("dir", "directory"),
                 })
             entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
             return entries
