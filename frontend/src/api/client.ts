@@ -18,10 +18,18 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(path, {
+  const res = await fetch(path, {
     ...options,
     headers,
   });
+
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/";
+    throw new Error("Session expired");
+  }
+
+  return res;
 }
 
 /**
