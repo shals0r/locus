@@ -88,9 +88,12 @@ def cmd_start(daemon: bool = False) -> None:
             os.dup2(log_fd.fileno(), sys.stderr.fileno())
         else:
             import subprocess
+            log_fd = open(LOG_FILE, "a")
             subprocess.Popen(
                 [sys.executable, "-m", "locus_agent", "start"],
-                creationflags=0x00000008,  # DETACHED_PROCESS
+                creationflags=0x08000000,  # CREATE_NO_WINDOW
+                stdout=log_fd,
+                stderr=log_fd,
             )
             print("Agent started in background")
             return
