@@ -19,6 +19,12 @@ def main() -> None:
         action="store_true",
         help="Run in background (daemon mode)",
     )
+    start_parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=None,
+        help="Port to listen on (default: 7700)",
+    )
 
     # stop
     subparsers.add_parser("stop", help="Stop the running agent")
@@ -38,7 +44,7 @@ def main() -> None:
     from locus_agent.cli import cmd_start, cmd_stop, cmd_status, cmd_logs
 
     if args.command == "start":
-        cmd_start(daemon=args.daemon)
+        cmd_start(daemon=args.daemon, port=args.port)
     elif args.command == "stop":
         cmd_stop()
     elif args.command == "status":

@@ -138,7 +138,7 @@ async def lifespan(app: FastAPI):
                         ssh_key_path=machine.ssh_key_path,
                         ssh_key_passphrase=passphrase,
                     ),
-                    timeout=10,
+                    timeout=30,
                 )
                 logger.info("Auto-connected to %s", machine.name)
             except Exception as exc:

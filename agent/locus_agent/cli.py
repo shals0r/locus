@@ -63,7 +63,7 @@ def read_pid() -> int | None:
         return None
 
 
-def cmd_start(daemon: bool = False) -> None:
+def cmd_start(daemon: bool = False, port: int | None = None) -> None:
     """Start the Locus Agent."""
     existing_pid = read_pid()
     if existing_pid is not None:
@@ -73,6 +73,8 @@ def cmd_start(daemon: bool = False) -> None:
     ensure_agent_dir()
     token = ensure_token()
     os.environ["LOCUS_AGENT_TOKEN"] = token
+    if port is not None:
+        os.environ["LOCUS_AGENT_PORT"] = str(port)
 
     if daemon:
         # Fork and detach on Unix
