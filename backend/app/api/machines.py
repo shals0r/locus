@@ -331,6 +331,33 @@ async def scan_repos(
         repos: list[str] = []
         for scan_path in scan_paths:
             try:
+                # Use agent's file list endpoint if available (cross-platform)
+                agent = local_machine_manager.agent_client
+                if agent:
+                    try:
+                        data = await agent.list_directory(scan_path)
+                        for entry in data.get("entries", []):
+                            if entry.get("name") == ".git" and entry.get("type") in ("dir", "directory"):
+                                repos.append(scan_path)
+                                break
+                        # Also check one level deeper
+                        for entry in data.get("entries", []):
+                            if entry.get("type") in ("dir", "directory") and entry.get("name") != ".git":
+                                sep = "/" if "/" in scan_path else "\\"
+                                subpath = f"{scan_path.rstrip(sep)}{sep}{entry['name']}"
+                                try:
+                                    subdata = await agent.list_directory(subpath)
+                                    for subentry in subdata.get("entries", []):
+                                        if subentry.get("name") == ".git" and subentry.get("type") in ("dir", "directory"):
+                                            repos.append(subpath)
+                                            break
+                                except Exception:
+                                    pass
+                        continue
+                    except Exception as exc:
+                        logger.debug("Agent file list failed for %s: %s, trying command", scan_path, exc)
+
+                # Fallback: run find command (works on Unix hosts / SSH)
                 output = await local_machine_manager.run_command(
                     f"find {scan_path} -maxdepth 2 -name .git -type d 2>/dev/null"
                 )
