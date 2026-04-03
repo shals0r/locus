@@ -21,6 +21,7 @@ from app.services.claude import (
     detect_claude_session_status,
     detect_claude_sessions_local,
     detect_claude_session_status_local,
+    detect_claude_sessions_for_machine,
 )
 from app.services.machine_registry import is_local_machine
 from app.ssh.manager import ssh_manager
@@ -221,6 +222,12 @@ async def _poll_session_names() -> list[dict[str, str]]:
                 # Native mode: use subprocess-based detection
                 display_name = await _detect_pane_display_name_local(tmux_name)
         else:
+            # Try agent first for remote machines (avoids SSH round-trips)
+            from app.services.machine_registry import get_agent_client_for_machine
+            agent = await get_agent_client_for_machine(machine_id)
+            if agent:
+                # Agent handles tmux — skip per-session SSH polling
+                continue
             conn = ssh_manager._connections.get(machine_id)
             if conn is None:
                 continue
@@ -240,43 +247,38 @@ async def _detect_session_statuses(
     machine_id: str,
     conn: object,
 ) -> list[dict]:
-    """Detect Claude sessions and their statuses on a machine via SSH."""
-    sem = ssh_manager.get_semaphore(machine_id)
-    async with sem:
-        sessions = await detect_claude_sessions(conn)  # type: ignore[arg-type]
+    """Detect Claude sessions and their statuses on a machine.
+
+    Routes through agent when available (via detect_claude_sessions_for_machine),
+    falls back to SSH.
+    """
+    sessions = await detect_claude_sessions_for_machine(machine_id)
     for s in sessions:
         s["machine_id"] = machine_id
-        async with sem:
-            s["status"] = await detect_claude_session_status(
-                conn, s["tmux_session"], s["window_index"]  # type: ignore[arg-type]
-            )
+        # Status detection still needs SSH if no agent — but agent path
+        # already returns status from detect_claude_sessions_via_agent
+        if "status" not in s:
+            sem = ssh_manager.get_semaphore(machine_id)
+            async with sem:
+                s["status"] = await detect_claude_session_status(
+                    conn, s["tmux_session"], s["window_index"]  # type: ignore[arg-type]
+                )
     return sessions
 
 
 async def _detect_local_claude_sessions() -> list[dict]:
     """Detect Claude sessions on the local machine.
 
-    In Docker mode with SSH: uses SSH (same as remote machines).
-    In Docker mode without SSH: returns empty (machine needs setup).
-    In native mode: uses subprocess-based detection.
+    Uses unified detect_claude_sessions_for_machine which routes through
+    agent when available.
     """
     if not local_machine_manager.is_usable:
-        # Docker mode without SSH — can't detect anything on the host
         return []
 
-    conn = await local_machine_manager.get_connection()
-    if conn is not None:
-        # Docker mode: reuse SSH-based detection
-        return await _detect_session_statuses(LOCAL_MACHINE_ID, conn)
-    else:
-        # Native mode: use subprocess-based detection
-        sessions = await detect_claude_sessions_local()
-        for s in sessions:
-            s["machine_id"] = LOCAL_MACHINE_ID
-            s["status"] = await detect_claude_session_status_local(
-                s["tmux_session"], s["window_index"]
-            )
-        return sessions
+    sessions = await detect_claude_sessions_for_machine(LOCAL_MACHINE_ID)
+    for s in sessions:
+        s["machine_id"] = LOCAL_MACHINE_ID
+    return sessions
 
 
 async def _build_initial_snapshot() -> dict[str, Any]:
