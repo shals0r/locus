@@ -27,10 +27,11 @@ import { apiGet } from "../../hooks/useApi";
 // Types for search results from /api/search
 // ------------------------------------------------------------------
 interface SearchResult {
-  type: "repo" | "machine" | "feed_item" | "task";
+  type: "repo" | "machine" | "feed_item" | "task" | "file_content";
   id: string;
   title: string;
   subtitle?: string;
+  action_data?: Record<string, unknown>;
 }
 
 interface SearchResponse {
@@ -60,6 +61,7 @@ const typeIcons: Record<SearchResult["type"], typeof GitBranch> = {
   machine: Server,
   feed_item: Inbox,
   task: CheckSquare,
+  file_content: FileText,
 };
 
 const groupLabels: Record<SearchResult["type"], string> = {
@@ -67,10 +69,12 @@ const groupLabels: Record<SearchResult["type"], string> = {
   machine: "Machines",
   feed_item: "Feed Items",
   task: "Tasks",
+  file_content: "File Contents",
 };
 
 const groupOrder: SearchResult["type"][] = [
   "repo",
+  "file_content",
   "machine",
   "feed_item",
   "task",
@@ -91,6 +95,7 @@ export function CommandPalette() {
   const rightPanelCollapsed = usePanelStore((s) => s.rightPanelCollapsed);
   const setActiveMachine = useMachineStore((s) => s.setActiveMachine);
   const activeDiffTab = useSessionStore((s) => s.activeDiffTab);
+  const openEditorTab = useSessionStore((s) => s.openEditorTab);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -183,9 +188,20 @@ export function CommandPalette() {
         case "task":
           setRightPanelCollapsed(false);
           break;
+        case "file_content": {
+          const { machine_id, repo_path, file_path } = result.action_data ?? {};
+          if (machine_id && repo_path && file_path) {
+            openEditorTab(
+              machine_id as string,
+              repo_path as string,
+              file_path as string,
+            );
+          }
+          break;
+        }
       }
     },
-    [close, setActiveMachine, setRightPanelCollapsed],
+    [close, setActiveMachine, setRightPanelCollapsed, openEditorTab],
   );
 
   // ------------------------------------------------------------------
@@ -448,11 +464,11 @@ export function CommandPalette() {
                   className="mx-1 flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm aria-selected:bg-hover hover:bg-hover"
                 >
                   <Icon size={14} className="shrink-0 text-muted" />
-                  <span className="truncate text-primary-text">
+                  <span className={`truncate text-primary-text ${item.type === "file_content" ? "font-mono text-xs" : ""}`}>
                     {item.title}
                   </span>
                   {item.subtitle && (
-                    <span className="ml-auto shrink-0 text-xs text-muted">
+                    <span className={`ml-auto shrink-0 text-xs text-muted ${item.type === "file_content" ? "truncate max-w-[300px]" : ""}`}>
                       {item.subtitle}
                     </span>
                   )}
