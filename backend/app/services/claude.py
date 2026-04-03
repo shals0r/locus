@@ -298,6 +298,7 @@ async def detect_claude_sessions_for_machine(machine_id: str) -> list[dict]:
             return await detect_claude_sessions_local()
 
     # Remote machine via SSH
+    logger.debug("Claude detection for machine %s via SSH (no agent)", machine_id)
     conn = await ssh_manager.get_connection(machine_id)
     if conn is not None:
         return await detect_claude_sessions(conn)

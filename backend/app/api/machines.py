@@ -23,9 +23,15 @@ from app.schemas.machine import (
     TmuxSessionItem,
     TmuxSessionsResponse,
 )
+from app.agent.deployer import ensure_agent
 from app.services.auth import get_current_user
 from app.services.crypto import decrypt_value, encrypt_value
-from app.services.machine_registry import is_local_machine, get_connection_for_machine
+from app.services.machine_registry import (
+    is_local_machine,
+    get_connection_for_machine,
+    register_agent_client,
+    unregister_agent_client,
+)
 from app.ssh.manager import ssh_manager
 from app.ssh.tmux import create_terminal_in_tmux, list_tmux_sessions
 
@@ -67,6 +73,20 @@ def _local_machine_response() -> MachineResponse:
         repo_scan_paths=settings.local_repo_scan_paths,
         status=local_machine_manager.get_status(),
     )
+
+
+async def _try_deploy_agent(machine_id: str, ssh_conn, host: str) -> None:
+    """Try to deploy and register a host agent on a remote machine.
+
+    Non-blocking: logs a warning on failure and returns None.
+    The SSH path remains functional regardless of agent deployment outcome.
+    """
+    try:
+        base_url, token = await ensure_agent(ssh_conn, host=host, port=7700)
+        await register_agent_client(machine_id, base_url, token)
+        logger.info("Agent deployed to machine %s at %s", machine_id, base_url)
+    except Exception as exc:
+        logger.info("Agent deployment skipped for %s: %s", machine_id, exc)
 
 
 @router.get("", response_model=list[MachineResponse])
@@ -112,6 +132,10 @@ async def create_machine(
             ssh_key_path=machine.ssh_key_path,
             ssh_key_passphrase=_get_passphrase(machine),
         )
+        # Try to deploy agent after successful SSH connect
+        ssh_conn = await ssh_manager.get_connection(str(machine.id))
+        if ssh_conn:
+            await _try_deploy_agent(str(machine.id), ssh_conn, machine.host)
     except Exception as exc:
         logger.warning("Auto-connect failed for machine %s: %s", machine.name, exc)
 
@@ -257,6 +281,11 @@ async def connect_machine(
             detail=f"SSH connection failed: {exc}",
         )
 
+    # Try to deploy agent after successful SSH connect
+    ssh_conn = await ssh_manager.get_connection(str(machine.id))
+    if ssh_conn:
+        await _try_deploy_agent(str(machine.id), ssh_conn, machine.host)
+
     return _machine_to_response(machine)
 
 
@@ -271,6 +300,7 @@ async def disconnect_machine(
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
 
+    await unregister_agent_client(str(machine.id))
     await ssh_manager.disconnect(str(machine.id))
     return _machine_to_response(machine)
 

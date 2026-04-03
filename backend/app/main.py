@@ -140,6 +140,20 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 logger.warning("Auto-connect failed for %s: %s", machine.name, exc)
 
+    # Auto-deploy agents to connected remote machines
+    from app.agent.deployer import ensure_agent
+    from app.services.machine_registry import register_agent_client
+    for machine in machines:
+        mid = str(machine.id)
+        conn = await ssh_manager.get_connection(mid)
+        if conn:
+            try:
+                base_url, token = await ensure_agent(conn, host=machine.host)
+                await register_agent_client(mid, base_url, token)
+                logger.info("Agent deployed to %s", machine.name)
+            except Exception as exc:
+                logger.info("Agent not available on %s (SSH fallback): %s", machine.name, exc)
+
     # Start integration polling (APScheduler -- legacy, kept for backward compat)
     await start_polling()
 
@@ -170,6 +184,16 @@ async def lifespan(app: FastAPI):
 
     # Shutdown legacy polling
     await stop_polling()
+
+    # Close remote agent clients
+    from app.services.machine_registry import _remote_agent_clients
+    for mid, client in list(_remote_agent_clients.items()):
+        try:
+            await client.close()
+        except Exception:
+            pass
+    _remote_agent_clients.clear()
+
     await local_machine_manager.shutdown()
     await ssh_manager.shutdown()
     await engine.dispose()
