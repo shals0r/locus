@@ -9,7 +9,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.models.app_setting import AppSetting
 from app.models.credential import Credential
 from app.services.auth import get_current_user
 from app.services.crypto import decrypt_value, encrypt_value
@@ -83,6 +85,56 @@ class StatusResponse(BaseModel):
     database: str
     ssh_machines: dict[str, str]
     claude_code: str
+
+
+class GeneralSettingsResponse(BaseModel):
+    """Schema for general settings response."""
+
+    local_repo_scan_paths: list[str]
+
+
+class GeneralSettingsUpdate(BaseModel):
+    """Schema for updating general settings."""
+
+    local_repo_scan_paths: list[str]
+
+
+# --- General settings endpoints ---
+
+
+@router.get("/general", response_model=GeneralSettingsResponse)
+async def get_general_settings(
+    _user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GeneralSettingsResponse:
+    """Get general application settings.
+
+    Returns local_repo_scan_paths from DB if set, otherwise falls back
+    to the LOCUS_LOCAL_REPO_SCAN_PATHS env var.
+    """
+    result = await db.get(AppSetting, "local_repo_scan_paths")
+    if result and result.value:
+        paths = [p.strip() for p in result.value.split(",") if p.strip()]
+    else:
+        paths = settings.local_repo_scan_paths
+    return GeneralSettingsResponse(local_repo_scan_paths=paths)
+
+
+@router.put("/general", response_model=GeneralSettingsResponse)
+async def update_general_settings(
+    body: GeneralSettingsUpdate,
+    _user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GeneralSettingsResponse:
+    """Update general application settings.
+
+    Persists local_repo_scan_paths to the database so they survive
+    container restarts without requiring env var changes.
+    """
+    value = ",".join(body.local_repo_scan_paths)
+    await db.merge(AppSetting(key="local_repo_scan_paths", value=value))
+    await db.flush()
+    return GeneralSettingsResponse(local_repo_scan_paths=body.local_repo_scan_paths)
 
 
 # --- Credential endpoints ---

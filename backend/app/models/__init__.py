@@ -6,6 +6,7 @@ from app.models.session import TerminalSession
 from app.models.feed_item import FeedItem
 from app.models.task import Task
 from app.models.integration_source import IntegrationSource
+from app.models.app_setting import AppSetting
 
 __all__ = [
     "Base",
@@ -16,4 +17,5 @@ __all__ = [
     "FeedItem",
     "Task",
     "IntegrationSource",
+    "AppSetting",
 ]

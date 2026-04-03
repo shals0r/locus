@@ -292,7 +292,10 @@ async def scan_repos(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Local machine is not available. Configure SSH to the host or install the Locus Host Agent.",
             )
-        scan_paths = settings.local_repo_scan_paths
+        from app.config import get_local_scan_paths_from_db
+
+        db_paths = await get_local_scan_paths_from_db()
+        scan_paths = db_paths if db_paths is not None else settings.local_repo_scan_paths
         if not scan_paths:
             return []
         repos: list[str] = []

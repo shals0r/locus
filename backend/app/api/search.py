@@ -76,10 +76,13 @@ async def search(
 
 async def _search_repos(db: AsyncSession, query: str) -> list[SearchResult]:
     """Search repos across all machines by repo name."""
+    from app.config import get_local_scan_paths_from_db
+
     results: list[SearchResult] = []
 
-    # Local machine repos
-    local_paths = settings.local_repo_scan_paths
+    # Local machine repos (DB setting takes precedence over env var)
+    db_paths = await get_local_scan_paths_from_db()
+    local_paths = db_paths if db_paths is not None else settings.local_repo_scan_paths
     for scan_path in local_paths:
         # Extract repo name from path (last component)
         repo_name = scan_path.rstrip("/").rsplit("/", 1)[-1] if "/" in scan_path else scan_path

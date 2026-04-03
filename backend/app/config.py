@@ -56,3 +56,18 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+async def get_local_scan_paths_from_db() -> list[str] | None:
+    """Read local_repo_scan_paths from DB. Returns None if not set."""
+    from app.database import async_session_factory
+    from app.models.app_setting import AppSetting
+
+    try:
+        async with async_session_factory() as db:
+            result = await db.get(AppSetting, "local_repo_scan_paths")
+            if result and result.value:
+                return [p.strip() for p in result.value.split(",") if p.strip()]
+    except Exception:
+        pass
+    return None
