@@ -11,9 +11,54 @@ terminal/command access without SSH.
 
 from __future__ import annotations
 
+import logging
+
 from app.agent.client import AgentClient
 from app.local.manager import LOCAL_MACHINE_ID, local_machine_manager
 from app.ssh.manager import ssh_manager
+
+logger = logging.getLogger(__name__)
+
+# Remote agent clients, keyed by machine_id.
+# Populated when agents are deployed to remote machines via SSH.
+_remote_agent_clients: dict[str, AgentClient] = {}
+
+
+async def register_agent_client(machine_id: str, base_url: str, token: str) -> AgentClient:
+    """Register (or replace) a remote agent client for a machine.
+
+    If an existing client is registered for this machine_id, it is
+    closed before the new one is stored.
+
+    Returns:
+        The newly created AgentClient.
+    """
+    existing = _remote_agent_clients.get(machine_id)
+    if existing is not None:
+        try:
+            await existing.close()
+        except Exception:
+            pass
+        logger.debug("Replaced existing agent client for machine %s", machine_id)
+
+    client = AgentClient(base_url, token)
+    _remote_agent_clients[machine_id] = client
+    logger.info("Registered agent client for machine %s at %s", machine_id, base_url)
+    return client
+
+
+async def unregister_agent_client(machine_id: str) -> None:
+    """Remove and close a remote agent client for a machine.
+
+    No-op if no client is registered for the given machine_id.
+    """
+    client = _remote_agent_clients.pop(machine_id, None)
+    if client is not None:
+        try:
+            await client.close()
+        except Exception:
+            pass
+        logger.info("Unregistered agent client for machine %s", machine_id)
 
 
 async def get_connection_for_machine(machine_id: str):
@@ -40,13 +85,11 @@ async def get_agent_client_for_machine(machine_id: str) -> AgentClient | None:
     Returns:
         AgentClient if the machine has an agent running, None otherwise.
 
-    Currently only the local machine supports agent-based access.
-    Remote machine agent support will come in a future phase.
+    Checks local machine agent first, then remote agent clients.
     """
     if machine_id == LOCAL_MACHINE_ID:
         return local_machine_manager.agent_client
-    # Remote machines: agent support not yet implemented
-    return None
+    return _remote_agent_clients.get(machine_id)
 
 
 def get_machine_status(machine_id: str) -> str:
@@ -73,9 +116,24 @@ async def run_command_on_machine(machine_id: str, command: str) -> str:
     Routes to LocalMachineManager.run_command() for the local machine
     (which prefers agent over SSH over subprocess),
     or executes via SSH connection for remote machines.
+
+    For remote machines, prefers the agent HTTP API when available,
+    falling back to SSH exec.
     """
     if machine_id == LOCAL_MACHINE_ID:
         return await local_machine_manager.run_command(command)
+
+    # Prefer agent client if registered for this machine
+    agent_client = _remote_agent_clients.get(machine_id)
+    if agent_client is not None:
+        try:
+            return await agent_client.run_command(command)
+        except Exception as exc:
+            logger.warning(
+                "Agent command failed for machine %s, falling back to SSH: %s",
+                machine_id,
+                exc,
+            )
 
     result = await ssh_manager.run(machine_id, command, check=True)
     return result.stdout
