@@ -45,10 +45,14 @@ else:
     python = os.path.join(VENV, "bin", "python")
     pip = os.path.join(VENV, "bin", "pip")
 
-print("Creating venv...")
-venv.create(VENV, with_pip=True)
-print(f"Installing locus-agent from {SRC}...")
-subprocess.check_call([pip, "install", "--quiet", SRC])
+if not os.path.exists(python):
+    print("Creating venv...")
+    venv.create(VENV, with_pip=True)
+    print(f"Installing locus-agent from {SRC}...")
+    subprocess.check_call([pip, "install", "--quiet", SRC])
+else:
+    print("Agent already installed.")
+
 print("Starting locus-agent...")
 subprocess.Popen(
     [python, "-m", "locus_agent", "start"],

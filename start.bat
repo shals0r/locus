@@ -1,0 +1,6 @@
+@echo off
+echo Starting locus-agent...
+"%USERPROFILE%\.locus-agent\venv\Scripts\python.exe" -m locus_agent start --daemon 2>nul || python "%USERPROFILE%\.locus-agent\install.py"
+
+echo Starting Docker...
+docker compose up --build -d

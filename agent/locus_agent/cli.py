@@ -68,7 +68,7 @@ def cmd_start(daemon: bool = False) -> None:
     existing_pid = read_pid()
     if existing_pid is not None:
         print(f"Agent already running (PID {existing_pid})")
-        sys.exit(1)
+        sys.exit(0)
 
     ensure_agent_dir()
     token = ensure_token()
