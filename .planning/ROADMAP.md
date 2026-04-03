@@ -167,7 +167,7 @@ Plans:
 - [x] 05-07-PLAN.md — [GAP] Replace stale needs_setup placeholder with actual agent start instructions
 - [ ] 05-08-PLAN.md — [GAP] Remote agent auto-deploy on SSH connect + Claude detection fix for VPS
 - [ ] 05-09-PLAN.md — [GAP] Local repo scan paths settings UI + DB persistence
-- [ ] 05-10-PLAN.md — [GAP] File content search (grep) across repos in command palette
+- [x] 05-10-PLAN.md — [GAP] File content search (grep) across repos in command palette
 
 **UI hint**: yes
 
