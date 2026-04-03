@@ -4,6 +4,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
