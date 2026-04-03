@@ -165,7 +165,7 @@ Plans:
 - [x] 05-05-PLAN.md — Backend integration (machine_registry, ws/terminal, claude, docker-compose rewiring)
 - [x] 05-06-PLAN.md — Phase 5b: Agent file/git APIs + backend service routing
 - [x] 05-07-PLAN.md — [GAP] Replace stale needs_setup placeholder with actual agent start instructions
-- [ ] 05-08-PLAN.md — [GAP] Remote agent auto-deploy on SSH connect + Claude detection fix for VPS
+- [x] 05-08-PLAN.md — [GAP] Remote agent auto-deploy on SSH connect + Claude detection fix for VPS
 - [ ] 05-09-PLAN.md — [GAP] Local repo scan paths settings UI + DB persistence
 - [ ] 05-10-PLAN.md — [GAP] File content search (grep) across repos in command palette
 
