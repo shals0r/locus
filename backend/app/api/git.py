@@ -41,7 +41,7 @@ from app.services.git_service import (
     git_push,
     list_branches,
 )
-from app.services.machine_registry import is_local_machine, run_command_on_machine
+from app.services.machine_registry import get_agent_client_for_machine, is_local_machine, run_command_on_machine
 from app.ssh.manager import ssh_manager
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,9 @@ async def get_all_status(
     if is_local_machine(machine_id):
         if not local_machine_manager.is_usable:
             raise HTTPException(status_code=409, detail="Local machine is not available")
-        scan_paths = settings.local_repo_scan_paths
+        from app.config import get_local_scan_paths_from_db
+        db_paths = await get_local_scan_paths_from_db()
+        scan_paths = db_paths if db_paths is not None else settings.local_repo_scan_paths
     else:
         machine = await db.get(Machine, UUID(machine_id))
         if machine is None:
@@ -112,10 +114,34 @@ async def get_all_status(
     if not scan_paths:
         return []
 
-    # Discover repos
+    # Discover repos — use agent file list (cross-platform) or find command (Unix)
     repos: list[str] = []
     for scan_path in scan_paths:
         try:
+            agent = await get_agent_client_for_machine(machine_id)
+            if agent:
+                try:
+                    data = await agent.list_directory(scan_path)
+                    for entry in data.get("entries", []):
+                        if entry.get("name") == ".git" and entry.get("type") in ("dir", "directory"):
+                            repos.append(scan_path)
+                            break
+                    for entry in data.get("entries", []):
+                        if entry.get("type") in ("dir", "directory") and entry.get("name") != ".git":
+                            sep = "/" if "/" in scan_path else "\\"
+                            subpath = f"{scan_path.rstrip(sep)}{sep}{entry['name']}"
+                            try:
+                                subdata = await agent.list_directory(subpath)
+                                for subentry in subdata.get("entries", []):
+                                    if subentry.get("name") == ".git" and subentry.get("type") in ("dir", "directory"):
+                                        repos.append(subpath)
+                                        break
+                            except Exception:
+                                pass
+                    continue
+                except Exception as exc:
+                    logger.debug("Agent file list failed for %s: %s", scan_path, exc)
+
             output = await run_command_on_machine(
                 machine_id,
                 f"find {scan_path} -maxdepth 2 -name .git -type d 2>/dev/null"
@@ -134,7 +160,7 @@ async def get_all_status(
     for repo_path in repos:
         try:
             status_data = await get_repo_status(machine_id, repo_path)
-            name = repo_path.rstrip("/").split("/")[-1]
+            name = repo_path.rstrip("/\\").replace("\\", "/").split("/")[-1]
             details.append(RepoDetail(
                 machine_id=machine_id,
                 repo_path=repo_path,
