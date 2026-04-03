@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -128,13 +129,16 @@ async def lifespan(app: FastAPI):
         for machine in machines:
             try:
                 passphrase = decrypt_value(machine.ssh_key_passphrase) if machine.ssh_key_passphrase else None
-                await ssh_manager.connect(
-                    machine_id=str(machine.id),
-                    host=machine.host,
-                    port=machine.port,
-                    username=machine.username,
-                    ssh_key_path=machine.ssh_key_path,
-                    ssh_key_passphrase=passphrase,
+                await asyncio.wait_for(
+                    ssh_manager.connect(
+                        machine_id=str(machine.id),
+                        host=machine.host,
+                        port=machine.port,
+                        username=machine.username,
+                        ssh_key_path=machine.ssh_key_path,
+                        ssh_key_passphrase=passphrase,
+                    ),
+                    timeout=10,
                 )
                 logger.info("Auto-connected to %s", machine.name)
             except Exception as exc:
