@@ -25,7 +25,7 @@ export function FileTreeNode({
   parentPath,
   depth,
 }: FileTreeNodeProps) {
-  const isExpanded = useFileTreeStore((s) => s.isExpanded);
+  const expandedDirs = useFileTreeStore((s) => s.expandedDirs);
   const toggleDir = useFileTreeStore((s) => s.toggleDir);
   const setContextMenu = useFileTreeStore((s) => s.setContextMenu);
   const renamingPath = useFileTreeStore((s) => s.renamingPath);
@@ -34,7 +34,7 @@ export function FileTreeNode({
   const renameFile = useRenameFile();
 
   const fullPath = entry.path;
-  const expanded = entry.is_dir && isExpanded(fullPath);
+  const expanded = entry.is_dir && expandedDirs.has(fullPath);
 
   // Only fetch children when directory is expanded
   const { data: children, isLoading: childrenLoading } = useListDirectory(
