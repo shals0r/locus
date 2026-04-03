@@ -145,6 +145,17 @@ class AgentClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def search_files(
+        self, path: str, pattern: str, max_results: int = 20, glob: str | None = None
+    ) -> dict:
+        """POST /files/search -- ripgrep-based file content search on the agent host."""
+        body: dict = {"path": path, "pattern": pattern, "max_results": max_results}
+        if glob is not None:
+            body["glob"] = glob
+        resp = await self._http.post("/files/search", json=body, timeout=10.0)
+        resp.raise_for_status()
+        return resp.json()
+
     # -- Git operations --
 
     async def git_status(self, repo_path: str) -> dict:

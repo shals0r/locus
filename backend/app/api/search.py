@@ -5,6 +5,7 @@ repos, machines, feed items, tasks, and static actions.
 """
 
 import logging
+import re
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -18,6 +19,7 @@ from app.models.machine import Machine
 from app.models.task import Task
 from app.schemas.command_palette import SearchResponse, SearchResult
 from app.services.auth import get_current_user
+from app.services.machine_registry import get_agent_client_for_machine, run_command_on_machine
 from app.ssh.manager import ssh_manager
 
 logger = logging.getLogger(__name__)
@@ -57,6 +59,9 @@ async def search(
 
     # --- 1. Repos: scan machines for matching repo names ---
     results.extend(await _search_repos(db, query))
+
+    # --- 1b. File contents: grep across repos on all machines ---
+    results.extend(await _search_file_contents(db, query))
 
     # --- 2. Machines: filter by name ---
     results.extend(await _search_machines(db, query))
@@ -115,6 +120,129 @@ async def _search_repos(db: AsyncSession, query: str) -> list[SearchResult]:
                 ))
 
     return results[:10]
+
+
+async def _search_file_contents(db: AsyncSession, query: str) -> list[SearchResult]:
+    """Search file contents (grep) across repos on all machines.
+
+    Uses agent's search_files (ripgrep) when available, falls back to SSH grep.
+    Limited to 5 results to keep command palette fast.
+    """
+    if len(query) < 3:
+        return []  # Skip very short queries to avoid excessive search
+
+    results: list[SearchResult] = []
+
+    # Gather all (machine_id, machine_name, repo_path) tuples
+    search_targets: list[tuple[str, str, str]] = []
+
+    # Local machine repos
+    local_paths = settings.local_repo_scan_paths
+    for scan_path in local_paths:
+        search_targets.append((LOCAL_MACHINE_ID, LOCAL_MACHINE_NAME, scan_path))
+
+    # Remote machine repos (Machine.repo_scan_paths is a JSON list[str] column)
+    stmt = select(Machine)
+    db_result = await db.execute(stmt)
+    machines = db_result.scalars().all()
+    for machine in machines:
+        if machine.repo_scan_paths:
+            for scan_path in machine.repo_scan_paths:
+                search_targets.append((str(machine.id), machine.name, scan_path))
+
+    # Search each target (limit to first 6 targets to stay fast)
+    for machine_id, machine_name, repo_path in search_targets[:6]:
+        if len(results) >= 5:
+            break
+
+        try:
+            # Try agent-based search first (faster, uses ripgrep)
+            agent = await get_agent_client_for_machine(machine_id)
+            if agent:
+                try:
+                    data = await agent.search_files(
+                        path=repo_path,
+                        pattern=query,
+                        max_results=5,
+                    )
+                    for match in data.get("matches", [])[:5]:
+                        if len(results) >= 5:
+                            break
+                        file_path = match["path"]
+                        # Make relative to repo
+                        rel_path = file_path
+                        if file_path.startswith(repo_path):
+                            rel_path = file_path[len(repo_path):].lstrip("/").lstrip("\\")
+                        repo_name = (
+                            repo_path.rstrip("/").rsplit("/", 1)[-1]
+                            if "/" in repo_path
+                            else repo_path.rsplit("\\", 1)[-1]
+                            if "\\" in repo_path
+                            else repo_path
+                        )
+                        results.append(SearchResult(
+                            id=f"filecontent-{machine_id}-{file_path}:{match['line']}",
+                            type="file_content",
+                            title=f"{rel_path}:{match['line']}",
+                            subtitle=f"{match['text'][:80].strip()} ({machine_name}/{repo_name})",
+                            action_data={
+                                "machine_id": machine_id,
+                                "repo_path": repo_path,
+                                "file_path": file_path,
+                                "line": match["line"],
+                            },
+                        ))
+                    continue  # Agent search done, skip SSH fallback
+                except Exception:
+                    pass  # Fall through to SSH grep
+
+            # SSH/subprocess grep fallback
+            escaped = query.replace("'", "'\\''")
+            exclude_dirs = ".git node_modules __pycache__ .venv dist build"
+            excludes = " ".join(f"--exclude-dir={d}" for d in exclude_dirs.split())
+            cmd = f"grep -rn -F -i {excludes} -- '{escaped}' {repo_path} 2>/dev/null | head -5"
+            try:
+                output = await run_command_on_machine(machine_id, cmd)
+            except Exception:
+                continue
+
+            line_pattern = re.compile(r"^(.+?):(\d+):(.*)$")
+            for raw_line in output.splitlines():
+                if len(results) >= 5:
+                    break
+                m = line_pattern.match(raw_line)
+                if not m:
+                    continue
+                file_path = m.group(1)
+                line_num = int(m.group(2))
+                line_text = m.group(3).strip()
+                rel_path = file_path
+                if file_path.startswith(repo_path):
+                    rel_path = file_path[len(repo_path):].lstrip("/").lstrip("\\")
+                repo_name = (
+                    repo_path.rstrip("/").rsplit("/", 1)[-1]
+                    if "/" in repo_path
+                    else repo_path.rsplit("\\", 1)[-1]
+                    if "\\" in repo_path
+                    else repo_path
+                )
+                results.append(SearchResult(
+                    id=f"filecontent-{machine_id}-{file_path}:{line_num}",
+                    type="file_content",
+                    title=f"{rel_path}:{line_num}",
+                    subtitle=f"{line_text[:80]} ({machine_name}/{repo_name})",
+                    action_data={
+                        "machine_id": machine_id,
+                        "repo_path": repo_path,
+                        "file_path": file_path,
+                        "line": line_num,
+                    },
+                ))
+        except Exception as exc:
+            logger.debug("File content search failed for %s:%s: %s", machine_id, repo_path, exc)
+            continue
+
+    return results
 
 
 async def _search_machines(db: AsyncSession, query: str) -> list[SearchResult]:
