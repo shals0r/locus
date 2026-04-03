@@ -248,7 +248,8 @@ export function useFileStat(
         `/api/files/stat?machine_id=${encodeURIComponent(machineId!)}&file_path=${encodeURIComponent(filePath!)}`,
       ),
     enabled: enabled && !!machineId && !!filePath,
-    refetchInterval: 5_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   });
 }

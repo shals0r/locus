@@ -38,7 +38,7 @@ export function FileTree() {
   const { data: rootListing, isLoading } = useListDirectory(
     selectedMachineId,
     selectedRepoPath,
-    10, // Load full tree in a single SSH call — prune handles heavy dirs
+    1, // Load one level — children lazy-load on expand
   );
 
   // Focus new item input when mode changes
