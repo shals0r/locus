@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-04-03T11:00:49.571Z"
+stopped_at: Completed 05-08-PLAN.md and 05-09-PLAN.md
+last_updated: "2026-04-03T11:01:03.489Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 7
@@ -79,6 +79,7 @@ Progress: [██████████] 100% (40/40 plans across phases 1–4
 | Phase 05 P05 | 4min | 2 tasks | 9 files |
 | Phase 05 P06 | 4min | 2 tasks | 6 files |
 | Phase 05 P08 | 3min | 2 tasks | 4 files |
+| Phase 05 P09 | 3min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 10MB file size limit on agent reads (vs 5MB SSH), dangerous git blocklist at agent level, porcelain v2 for structured git status parsing
 - [Phase 05]: Non-blocking agent deploy: _try_deploy_agent wraps ensure_agent in try/except so SSH always works even if agent fails
 - [Phase 05]: Module-level dict for remote agent clients: _remote_agent_clients keyed by machine_id, closed on unregister
+- [Phase 05]: AppSetting merge() upsert for single-user key-value storage; DB paths take precedence over env var
 
 ### Pending Todos
 
@@ -155,6 +157,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-03T11:00:49.568Z
-Stopped at: Completed 05-08-PLAN.md
+Last session: 2026-04-03T11:01:03.486Z
+Stopped at: Completed 05-08 and 05-09
 Resume file: None
