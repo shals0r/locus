@@ -25,6 +25,9 @@ AGENT_PORT = 7700
 # Directory inside Docker image containing pre-built .pyz files
 AGENT_PYZ_DIR = "/app/agents"
 
+# Directory inside Docker image containing agent source (pip install fallback)
+AGENT_SRC_DIR = "/app/agent-src"
+
 # Health polling settings
 _HEALTH_POLL_INTERVAL = 0.5  # seconds
 _HEALTH_POLL_TIMEOUT = 10.0  # seconds
@@ -160,31 +163,32 @@ async def deploy_agent(
     # Step 3: Create remote directory
     await ssh_conn.run(f"mkdir -p {AGENT_DIR}", check=True)
 
-    # Step 4: SCP correct .pyz file
+    # Step 4: Deploy agent binary or source
     pyz_name = f"locus-agent-{platform}.pyz"
     local_path = os.path.join(AGENT_PYZ_DIR, pyz_name)
-
-    if not os.path.exists(local_path):
-        raise RuntimeError(
-            f"Agent .pyz not found at {local_path}. "
-            f"Ensure agent is built for platform '{platform}'."
-        )
-
-    remote_path = f"{AGENT_DIR}/{pyz_name}"
-    await asyncssh.scp(local_path, (ssh_conn, remote_path))
-    logger.info("DEPLOY: Uploaded %s to %s", pyz_name, remote_path)
-
-    # Step 5: Start agent in background
     is_windows = platform.startswith("win")
-    if is_windows:
-        start_cmd = (
-            f"Start-Process -NoNewWindow {python_cmd} "
-            f"-ArgumentList '{remote_path}','start','--port','{port}'"
-        )
+
+    if os.path.exists(local_path):
+        # Fast path: SCP pre-built .pyz
+        remote_path = f"{AGENT_DIR}/{pyz_name}"
+        await asyncssh.scp(local_path, (ssh_conn, remote_path))
+        logger.info("DEPLOY: Uploaded %s to %s", pyz_name, remote_path)
+
+        if is_windows:
+            start_cmd = (
+                f"Start-Process -NoNewWindow {python_cmd} "
+                f"-ArgumentList '{remote_path}','start','--port','{port}'"
+            )
+        else:
+            start_cmd = (
+                f"nohup {python_cmd} {remote_path} start --port {port} "
+                f"> {AGENT_DIR}/agent.log 2>&1 &"
+            )
     else:
-        start_cmd = (
-            f"nohup {python_cmd} {remote_path} start --port {port} "
-            f"> {AGENT_DIR}/agent.log 2>&1 &"
+        # Cross-platform fallback: pip install from source tarball
+        logger.info("DEPLOY: No .pyz for %s, deploying via pip install", platform)
+        start_cmd = await _deploy_via_pip(
+            ssh_conn, python_cmd, platform, port,
         )
 
     await ssh_conn.run(start_cmd, check=False)
@@ -267,6 +271,75 @@ async def ensure_agent(
 
     # Deploy fresh agent
     return await deploy_agent(ssh_conn, port=port)
+
+
+async def _deploy_via_pip(
+    ssh_conn: asyncssh.SSHClientConnection,
+    python_cmd: str,
+    platform: str,
+    port: int,
+) -> str:
+    """Deploy agent via pip install from source tarball (cross-platform fallback).
+
+    Creates a tarball of the agent source, SCPs it, extracts, creates a venv,
+    pip installs, and returns the start command string.
+    """
+    import tarfile
+    import tempfile
+
+    is_windows = platform.startswith("win")
+
+    # Create tarball of agent source
+    with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp:
+        tarball_local = tmp.name
+    try:
+        with tarfile.open(tarball_local, "w:gz") as tar:
+            tar.add(AGENT_SRC_DIR, arcname="locus-agent")
+
+        remote_tarball = f"{AGENT_DIR}/locus-agent-src.tar.gz"
+        await asyncssh.scp(tarball_local, (ssh_conn, remote_tarball))
+        logger.info("DEPLOY: Uploaded agent source tarball")
+    finally:
+        os.unlink(tarball_local)
+
+    # Extract tarball
+    if is_windows:
+        await ssh_conn.run(
+            f'cd "{AGENT_DIR}" && tar xzf locus-agent-src.tar.gz', check=True,
+        )
+    else:
+        await ssh_conn.run(
+            f"cd {AGENT_DIR} && tar xzf locus-agent-src.tar.gz", check=True,
+        )
+
+    # Create venv and pip install
+    venv_dir = f"{AGENT_DIR}/venv"
+    if is_windows:
+        venv_python = f"{venv_dir}\\Scripts\\python.exe"
+        pip_cmd = f"{venv_dir}\\Scripts\\pip.exe"
+    else:
+        venv_python = f"{venv_dir}/bin/python"
+        pip_cmd = f"{venv_dir}/bin/pip"
+
+    await ssh_conn.run(f"{python_cmd} -m venv {venv_dir}", check=True)
+    logger.info("DEPLOY: Created venv at %s", venv_dir)
+
+    await ssh_conn.run(
+        f"{pip_cmd} install --quiet {AGENT_DIR}/locus-agent", check=True,
+    )
+    logger.info("DEPLOY: Installed agent via pip")
+
+    # Return the start command (caller handles execution)
+    if is_windows:
+        return (
+            f'Start-Process -NoNewWindow "{venv_python}" '
+            f'-ArgumentList "-m","locus_agent","start","--port","{port}"'
+        )
+    else:
+        return (
+            f"nohup {venv_python} -m locus_agent start --port {port} "
+            f"> {AGENT_DIR}/agent.log 2>&1 &"
+        )
 
 
 async def _poll_health(base_url: str, timeout: float = _HEALTH_POLL_TIMEOUT) -> dict | None:

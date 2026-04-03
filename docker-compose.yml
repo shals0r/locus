@@ -44,7 +44,6 @@ services:
       - type: bind
         source: ${LOCUS_AGENT_DIR:-${HOME}/.locus-agent}
         target: /opt/locus-agent
-        read_only: true
         bind:
           create_host_path: true
 
@@ -80,7 +79,6 @@ services:
       - type: bind
         source: ${LOCUS_AGENT_DIR:-${HOME}/.locus-agent}
         target: /opt/locus-agent
-        read_only: true
         bind:
           create_host_path: true
 

@@ -11,14 +11,55 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shutil
 
 from app.config import settings
+
+# Shared volume mount point (host's ~/.locus-agent)
+AGENT_SHARED_DIR = "/opt/locus-agent"
+# Agent source in Docker image
+AGENT_SRC_DIR = "/app/agent-src"
 
 logger = logging.getLogger(__name__)
 
 # Well-known ID for the local machine (never stored in DB)
 LOCAL_MACHINE_ID = "local"
 LOCAL_MACHINE_NAME = "This Machine"
+
+_BOOTSTRAP_SCRIPT = """\
+#!/usr/bin/env python3
+\"\"\"Locus Agent bootstrap installer.
+
+Run: python ~/.locus-agent/install.py
+\"\"\"
+import os, subprocess, sys, venv
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+VENV = os.path.join(HERE, "venv")
+SRC = os.path.join(HERE, "locus-agent")
+
+if sys.platform == "win32":
+    python = os.path.join(VENV, "Scripts", "python.exe")
+    pip = os.path.join(VENV, "Scripts", "pip.exe")
+else:
+    python = os.path.join(VENV, "bin", "python")
+    pip = os.path.join(VENV, "bin", "pip")
+
+print("Creating venv...")
+venv.create(VENV, with_pip=True)
+print(f"Installing locus-agent from {SRC}...")
+subprocess.check_call([pip, "install", "--quiet", SRC])
+print("Starting locus-agent...")
+subprocess.Popen(
+    [python, "-m", "locus_agent", "start"],
+    cwd=HERE,
+    start_new_session=True,
+    stdout=open(os.path.join(HERE, "agent.log"), "w"),
+    stderr=subprocess.STDOUT,
+)
+print("Done! Agent is running on http://localhost:7700")
+print("Refresh Locus in your browser — 'This Machine' should show as online.")
+"""
 
 
 def is_running_in_docker() -> bool:
@@ -66,8 +107,9 @@ class LocalMachineManager:
     async def initialize(self) -> None:
         """Set up the local machine connection on startup.
 
-        Tries agent first (if configured), then SSH (Docker mode),
-        then subprocess (native mode).
+        Tries agent first (if configured). If agent is not running and SSH
+        is available, auto-deploys the agent (like VS Code Remote).
+        Falls back to SSH-only, then subprocess (native mode).
         """
         # Try agent first if configured
         if settings.agent_url:
@@ -79,6 +121,12 @@ class LocalMachineManager:
 
         if self._in_docker:
             await self._connect_to_host()
+            # Agent wasn't running but SSH is up — auto-deploy agent
+            if self._ssh_conn is not None and not self._agent_available:
+                await self._auto_deploy_agent()
+            # No agent and no SSH — stage source to shared volume for manual install
+            if not self._agent_available and self._ssh_conn is None:
+                self._stage_agent_source()
         else:
             logger.info("Local machine: running in native mode (subprocess)")
 
@@ -107,6 +155,57 @@ class LocalMachineManager:
             logger.warning(
                 "Host agent probe failed at %s: %s -- falling back to SSH",
                 settings.agent_url,
+                exc,
+            )
+
+    def _stage_agent_source(self) -> None:
+        """Copy agent source to the shared volume so the user can install it.
+
+        The shared volume (~/.locus-agent on host) is bind-mounted at
+        /opt/locus-agent in the container. Writes agent source and a
+        bootstrap script the user can run with one command.
+        """
+        if not os.path.isdir(AGENT_SRC_DIR):
+            return
+        dest = os.path.join(AGENT_SHARED_DIR, "locus-agent")
+        try:
+            if os.path.isdir(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(AGENT_SRC_DIR, dest)
+
+            # Write bootstrap install script
+            bootstrap = os.path.join(AGENT_SHARED_DIR, "install.py")
+            with open(bootstrap, "w") as f:
+                f.write(_BOOTSTRAP_SCRIPT)
+
+            logger.info(
+                "Local machine: agent source staged to shared volume. "
+                "Run 'python ~/.locus-agent/install.py' on the host to install."
+            )
+        except Exception as exc:
+            logger.debug("Failed to stage agent source: %s", exc)
+
+    async def _auto_deploy_agent(self) -> None:
+        """Auto-deploy the host agent over SSH (VS Code Remote-style).
+
+        Called when agent probe failed but SSH to host succeeded.
+        Non-blocking: if deploy fails, SSH remains the fallback.
+        """
+        from app.agent.client import AgentClient
+        from app.agent.deployer import ensure_agent
+
+        try:
+            host = settings.local_ssh_host
+            base_url, token = await ensure_agent(self._ssh_conn, host=host)
+            self._agent_client = AgentClient(base_url, token)
+            self._agent_available = True
+            logger.info(
+                "Local machine: agent auto-deployed at %s",
+                base_url,
+            )
+        except Exception as exc:
+            logger.info(
+                "Local machine: agent auto-deploy skipped (%s), using SSH",
                 exc,
             )
 

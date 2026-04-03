@@ -145,10 +145,10 @@ export function CenterPanel() {
                   A lightweight process running on your host that bridges Docker
                   to the host.
                 </p>
-                <pre className="mt-2 rounded bg-dominant px-3 py-2 text-xs text-accent font-mono whitespace-pre"><code>pip install ./agent
-locus-agent start</code></pre>
+                <pre className="mt-2 rounded bg-dominant px-3 py-2 text-xs text-accent font-mono whitespace-pre"><code>python ~/.locus-agent/install.py</code></pre>
                 <p className="mt-1 text-xs text-muted">
-                  Runs on port 7700 by default. Locus auto-detects the agent from Docker.
+                  One command — creates a venv, installs, and starts the agent on port 7700.
+                  Locus auto-detects it. Refresh this page after running.
                 </p>
               </div>
               <div className="rounded border border-border bg-secondary p-3">

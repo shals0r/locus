@@ -59,7 +59,7 @@ def read_pid() -> int | None:
             pid = int(f.read().strip())
         os.kill(pid, 0)  # Check if process exists
         return pid
-    except (ValueError, ProcessLookupError, PermissionError, FileNotFoundError):
+    except (ValueError, ProcessLookupError, PermissionError, FileNotFoundError, OSError):
         return None
 
 
