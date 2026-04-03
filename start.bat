@@ -14,9 +14,8 @@ if not exist "%USERPROFILE%\.locus-agent\locus-agent" (
 python -m venv "%USERPROFILE%\.locus-agent\venv"
 "%USERPROFILE%\.locus-agent\venv\Scripts\pip.exe" install --quiet "%USERPROFILE%\.locus-agent\locus-agent"
 echo Starting agent...
-start /b "" "%USERPROFILE%\.locus-agent\venv\Scripts\python.exe" -m locus_agent start > "%USERPROFILE%\.locus-agent\agent.log" 2>&1
-timeout /t 2 /nobreak > nul
-echo Agent running on http://localhost:7700
+"%USERPROFILE%\.locus-agent\venv\Scripts\python.exe" -m locus_agent start --daemon
+ping -n 3 127.0.0.1 > nul
 
 :docker
 echo Starting Docker...

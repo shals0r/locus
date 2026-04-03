@@ -328,6 +328,22 @@ async def terminal_websocket(websocket: WebSocket, session_id: str) -> None:
 
     # --- SSH / subprocess path (fallback) ---
 
+    # For local machine when agent proxy failed, block terminal —
+    # the SSH/tmux fallback doesn't work on Windows hosts (no tmux).
+    # The agent is the ONLY way to get a terminal on Windows.
+    if is_local_machine(machine_id) and local_machine_manager.agent_client is not None:
+        # Agent was available but WS proxy failed — don't fall through to tmux
+        try:
+            await websocket.send_text(
+                '{"type":"error","message":"Terminal connection to agent failed. '
+                'The agent may have stopped — restart it with: '
+                'python ~/.locus-agent/install.py"}'
+            )
+        except Exception:
+            pass
+        await websocket.close(code=4003, reason="Agent terminal proxy failed")
+        return
+
     # For local machine in Docker mode without SSH, block terminal
     if is_local_machine(machine_id) and not local_machine_manager.is_usable:
         try:
