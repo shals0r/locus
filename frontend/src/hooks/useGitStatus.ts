@@ -64,6 +64,7 @@ export function useChangedFiles(
         `/api/git/changed-files?machine_id=${machineId}&repo_path=${encodeURIComponent(repoPath!)}`,
       ),
     enabled: !!machineId && !!repoPath,
+    refetchInterval: 10_000,
   });
 }
 

@@ -84,12 +84,15 @@ async def get_commit_log(
         try:
             result = await agent.git_log(repo_path, count=limit)
             # Map agent format to backend format
+            from datetime import datetime, timezone
             return [
                 {
                     "sha": c["hash"],
                     "message": c["message"],
                     "author": c["author"],
-                    "date": c.get("email", ""),  # agent returns email separately
+                    "date": datetime.fromtimestamp(
+                        c.get("timestamp", 0), tz=timezone.utc
+                    ).isoformat(),
                 }
                 for c in result.get("commits", [])
             ]
