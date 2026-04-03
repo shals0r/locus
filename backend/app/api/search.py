@@ -139,8 +139,10 @@ async def _search_file_contents(db: AsyncSession, query: str) -> list[SearchResu
     # Gather all (machine_id, machine_name, repo_path) tuples
     search_targets: list[tuple[str, str, str]] = []
 
-    # Local machine repos
-    local_paths = settings.local_repo_scan_paths
+    # Local machine repos (DB setting takes precedence over env var)
+    from app.config import get_local_scan_paths_from_db
+    db_paths = await get_local_scan_paths_from_db()
+    local_paths = db_paths if db_paths is not None else settings.local_repo_scan_paths
     for scan_path in local_paths:
         search_targets.append((LOCAL_MACHINE_ID, LOCAL_MACHINE_NAME, scan_path))
 
